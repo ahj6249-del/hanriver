@@ -593,7 +593,8 @@
           </div>
           <div class="form-group" id="group-tx-price">
             <label id="label-tx-price" for="tx-price">체결 가격 (USD $) *</label>
-            <input type="number" step="any" inputmode="decimal" id="tx-price" class="form-input" placeholder="0.00">
+            <input type="number" step="any" inputmode="decimal" id="tx-price" class="form-input" placeholder="0.00" aria-describedby="tx-quote-hint">
+            <p class="muted" id="tx-quote-hint" role="status"></p>
           </div>
         </div>
 

@@ -1004,7 +1004,8 @@ dialog::backdrop {
 .trade-total { color: var(--text-main); font-variant-numeric: tabular-nums; margin-bottom: 12px; }
 .trade-details summary { cursor: pointer; color: var(--text-secondary); margin-bottom: 10px; }
 .trade-details .form-row { margin-top: 10px; }
-#tx-symbol-status:empty, #tx-total:empty { display: none; }
+#tx-quote-hint { font-size: 12px; overflow-wrap: anywhere; }
+#tx-quote-hint:empty, #tx-symbol-status:empty, #tx-total:empty { display: none; }
 @media (max-width: 860px) {
   .mobile-buy { display: inline-flex; white-space: nowrap; }
   .demo-mode .mobile-buy { display: none; }

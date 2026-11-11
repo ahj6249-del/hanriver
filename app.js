@@ -1145,6 +1145,7 @@ function openTransactionModal(type = 'BUY', ticker = '', editTx = null, stockNam
   const matchedStock = STOCK_DATABASE.find(stock => stock.ticker === ticker);
   if (!editTx && !stockName && matchedStock) document.getElementById('tx-name').value = matchedStock.name;
   document.getElementById('tx-details').open = type !== TX_TYPES.BUY || Boolean(editTx);
+  clearTradeQuote(false);
   resetSymbolResults();
   renderRecentTickers();
   updateTxModalFields();
@@ -1171,6 +1172,7 @@ function resetSymbolResults() {
 function selectTradeSymbol(ticker, name) {
   document.getElementById('tx-ticker').value = ticker;
   document.getElementById('tx-name').value = name;
+  prefillTradeQuote();
   resetSymbolResults();
   document.getElementById('quick-ticker-chips').hidden = true;
   document.getElementById(document.getElementById('tx-type').value === 'SPLIT' ? 'tx-price' : 'tx-qty').focus();
@@ -1199,6 +1201,7 @@ function searchTradeSymbol() {
   resetSymbolResults();
   const field = document.getElementById('tx-ticker');
   const query = field.value.trim();
+  prefillTradeQuote();
   const status = document.getElementById('tx-symbol-status');
   document.getElementById('tx-name').value = '';
   document.getElementById('quick-ticker-chips').hidden = Boolean(query);
@@ -1223,6 +1226,33 @@ function searchTradeSymbol() {
     if (!matches.length) status.textContent = directoryAvailable ?
       '일치하는 종목이 없습니다. 정확한 티커를 직접 입력할 수 있습니다.' : '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.';
   }, 100);
+}
+
+function clearTradeQuote(clearValue = true) {
+  const price = document.getElementById('tx-price');
+  if (clearValue && price.dataset.quoteTicker) price.value = '';
+  delete price.dataset.quoteTicker;
+  document.getElementById('tx-quote-hint').textContent = '';
+}
+
+function prefillTradeQuote() {
+  const price = document.getElementById('tx-price');
+  const ticker = document.getElementById('tx-ticker').value.trim().toUpperCase();
+  const type = document.getElementById('tx-type').value;
+  const isNewTrade = !document.getElementById('tx-id').value;
+  const canPrefill = isNewTrade && (type === TX_TYPES.BUY || type === TX_TYPES.SELL);
+  if (price.dataset.quoteTicker && (!canPrefill || price.dataset.quoteTicker !== ticker)) {
+    clearTradeQuote();
+  }
+  const quote = state.prices[ticker];
+  const value = Number(quote?.price);
+  if (canPrefill && !price.value && Number.isFinite(value) && value > 0) {
+    price.value = String(value);
+    price.dataset.quoteTicker = ticker;
+    document.getElementById('tx-quote-hint').textContent =
+      `시세 자동 입력 · ${quoteLabel(quote)} · 체결가 수정 가능`;
+  }
+  updateTradeTotal();
 }
 
 function updateTradeTotal() {
@@ -1254,7 +1284,7 @@ function updateTxModalFields() {
   const editing = Boolean(document.getElementById('tx-id').value);
   document.getElementById('btn-save-tx').textContent = editing ? '수정 저장' : `${TX_TYPE_LABELS[type]} 저장`;
   if (!editing) document.getElementById('modal-tx-title').textContent = `${TX_TYPE_LABELS[type]} 기록`;
-  updateTradeTotal();
+  prefillTradeQuote();
 
 }
 
@@ -1387,6 +1417,7 @@ function initEvents() {
       else document.querySelector('#tx-symbol-results button')?.click();
     }
   });
+  document.getElementById('tx-price').addEventListener('input', () => clearTradeQuote(false));
   for (const id of ['tx-qty', 'tx-price', 'tx-fee', 'tx-tax']) {
     document.getElementById(id).addEventListener('input', updateTradeTotal);
   }
