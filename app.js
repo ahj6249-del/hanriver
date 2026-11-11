@@ -977,6 +977,7 @@ function drawAllocationDonut() {
     color: colors[index % colors.length]
   }));
   if (p.cash > 0) items.push({ ticker: '현금', val: p.cash, color: '#475569' });
+  items.sort((a, b) => b.val - a.val);
 
   const liabilities = p.holdings.filter(holding => holding.evalValue < 0).map(holding => ({
     label: `${holding.ticker} 공매도 상환액`, value: holding.evalValue
