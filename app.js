@@ -801,6 +801,15 @@ function renderJournal() {
  * 7. 종목 검색 및 시세 뷰 렌더링
  */
 let stockSearchVersion = 0;
+let visibleStockTickers = [];
+let refreshingQuotes = false;
+
+function updateQuoteButtons() {
+  const button = document.getElementById('btn-stock-refresh-all');
+  button.disabled = refreshingQuotes || visibleStockTickers.length === 0;
+  button.textContent = refreshingQuotes ? '조회 중…' : '전체 시세 조회';
+  document.getElementById('btn-header-refresh').disabled = refreshingQuotes;
+}
 
 async function renderStocks() {
   const container = document.getElementById('stock-search-results');
@@ -812,6 +821,13 @@ async function renderStocks() {
   const watchOnly = state.watchOnly;
   const query = searchForm.querySelector('input').value.trim();
   searchForm.hidden = watchOnly;
+  const listLayout = state.settings.watchlistLayout === 'list';
+  container.classList.toggle('stock-results-list', watchOnly && listLayout);
+  document.getElementById('watchlist-layout').hidden = !watchOnly;
+  document.getElementById('watch-layout-card').setAttribute('aria-pressed', String(!listLayout));
+  document.getElementById('watch-layout-list').setAttribute('aria-pressed', String(listLayout));
+  visibleStockTickers = [];
+  updateQuoteButtons();
   for (const button of document.querySelectorAll('.mobile-nav [data-view="stocks"]')) {
     const active = (button.dataset.stockMode === 'watch') === watchOnly;
     button.classList.toggle('active', active);
@@ -835,6 +851,8 @@ async function renderStocks() {
     !query ? '티커나 회사명을 입력해 종목을 검색하세요.' :
     !matches.length ? '상장 목록에서 일치하는 종목을 찾지 못했습니다.' : '';
 
+  visibleStockTickers = [...new Set(results.map(stock => stock.ticker))];
+  updateQuoteButtons();
   container.innerHTML = results.map(stock => {
     const ticker = escapeHTML(stock.ticker);
     const quote = state.prices[stock.ticker];
@@ -895,6 +913,7 @@ async function renderStocks() {
   }
   for (const button of container.querySelectorAll('.btn-quick-quote')) {
     button.onclick = async () => {
+      if (refreshingQuotes) return;
       button.disabled = true;
       button.textContent = '조회 중…';
       try {
@@ -1792,7 +1811,7 @@ function initEvents() {
         resultEl.innerHTML = `✅ ${res.message} - API 키가 저장되었습니다!`;
       }
       showToast('Finnhub 실시간 시세가 성공적으로 연동되었습니다!');
-      await refreshQuotesWithFinnhub();
+      await refreshVisibleQuotes();
     } else {
       if (resultEl) {
         resultEl.style.color = '#ef4444';
@@ -1802,36 +1821,51 @@ function initEvents() {
     }
   });
 
-  async function refreshQuotesWithFinnhub() {
-    const spinIcon = document.getElementById('refresh-spin-icon');
-    if (spinIcon) spinIcon.style.animation = 'spin 1s infinite linear';
-
-    // 수집할 티커 목록 (보유 종목 + 대표 종목)
-    const portfolioTickers = (state.portfolio?.holdings || []).map(h => h.ticker);
-    const dbTickers = STOCK_DATABASE.map(s => s.ticker);
-    const allTickers = Array.from(new Set([...portfolioTickers, ...dbTickers]));
-
-    const button = document.getElementById('btn-header-refresh');
-    button.disabled = true;
-    try {
-      if (!state.settings.apiKeyFinnhub && !state.settings.apiKeyTwelveData) {
-        showToast('설정에서 시세 API 키를 등록하거나 포트폴리오에서 가격을 직접 입력해주세요.');
-        return;
-      }
-      const quotes = await refreshAllQuotes(portfolioTickers.length ? portfolioTickers : allTickers, state.settings);
-      const refreshed = Object.values(quotes).filter(quote => quote.refreshed).length;
-      const requested = new Set(portfolioTickers.length ? portfolioTickers : allTickers).size;
-      showToast(`시세 응답 ${refreshed}/${requested}개 · 기준 시각은 포트폴리오에서 확인하세요.`);
-      await refreshState();
-    } finally {
-      button.disabled = false;
-      if (spinIcon) spinIcon.style.animation = 'none';
+  async function refreshVisibleQuotes() {
+    if (refreshingQuotes) return;
+    const viewingStocks = state.currentView === 'stocks';
+    const holdings = (state.portfolio?.holdings || []).map(holding => holding.ticker);
+    const tickers = [...new Set(viewingStocks ? visibleStockTickers : holdings)];
+    if (!tickers.length) {
+      showToast(viewingStocks ? '시세를 조회할 종목이 없습니다.' : '보유 종목이 없습니다.');
+      return;
+    }
+    if (!state.settings.apiKeyFinnhub && !state.settings.apiKeyTwelveData) {
+      showToast('설정에서 시세 API 키를 등록해주세요.');
+      return;
     }
 
+    const spinIcon = document.getElementById('refresh-spin-icon');
+    refreshingQuotes = true;
+    updateQuoteButtons();
+    spinIcon.style.animation = 'spin 1s infinite linear';
+    try {
+      const quotes = await refreshAllQuotes(tickers, state.settings);
+      const refreshed = Object.values(quotes).filter(quote => quote.refreshed).length;
+      await refreshState();
+      showToast(`시세 조회 ${refreshed}/${tickers.length}개 갱신`);
+    } finally {
+      refreshingQuotes = false;
+      updateQuoteButtons();
+      spinIcon.style.animation = 'none';
+    }
   }
 
-  // 헤더 새로고침
-  document.getElementById('btn-header-refresh')?.addEventListener('click', refreshQuotesWithFinnhub);
+  document.getElementById('btn-header-refresh').addEventListener('click', refreshVisibleQuotes);
+  document.getElementById('btn-stock-refresh-all').addEventListener('click', refreshVisibleQuotes);
+  for (const layout of ['card', 'list']) {
+    document.getElementById('watch-layout-' + layout).addEventListener('click', () => {
+      const settings = { ...getSettings(), watchlistLayout: layout };
+      try {
+        saveSettings(settings);
+      } catch {
+        showToast('보기 설정을 저장하지 못했습니다.');
+        return;
+      }
+      state.settings = settings;
+      renderStocks();
+    });
+  }
 
   // 헤더 설정 버튼
   document.getElementById('btn-header-settings')?.addEventListener('click', () => switchView('settings'));

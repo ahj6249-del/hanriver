@@ -1143,3 +1143,28 @@ dialog::backdrop {
 .watch-chart-symbols button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
 
 .allocation-offset { display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); }
+
+.stock-view-actions, #watchlist-layout { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.stock-view-actions { justify-content: space-between; margin-block: 8px; }
+#watchlist-layout[hidden] { display: none; }
+#watchlist-layout button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
+.stock-search-results.stock-results-list { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.stock-results-list .stock-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title quote" "name actions";
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.stock-results-list .stock-result-title { grid-area: title; }
+.stock-results-list .watch-toggle { margin-left: 0; }
+.stock-results-list .stock-result-name { grid-area: name; font-size: 12px; }
+.stock-results-list .stock-result-quote { grid-area: quote; justify-content: flex-end; text-align: right; }
+.stock-results-list .stock-result-actions { grid-area: actions; justify-content: flex-end; margin-top: 0; }
+@media (max-width: 540px) {
+  .stock-results-list .stock-result {
+    grid-template-areas: "title quote" "name quote" "actions actions";
+  }
+  .stock-results-list .stock-result-quote { flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; }
+}
