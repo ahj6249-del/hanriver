@@ -8,6 +8,8 @@ import {
   TX_TYPES,
   TX_TYPE_LABELS,
   calculatePortfolio,
+  calculateAccountDay,
+  transactionTime,
   calculatePerformanceMetrics,
   calculateHabits,
   formatUSD,
@@ -29,7 +31,8 @@ import {
   getSampleData,
   isLegacySample,
   exportAllData,
-  importAllData
+  importAllData,
+  clearAllData
 } from './storage.js';
 
 import {
@@ -135,6 +138,7 @@ async function refreshState() {
   document.getElementById('account-select').value = state.accountId;
 
   state.portfolio = calculatePortfolio(state.transactions, state.prices, state.settings.fxRate);
+  state.accountDay = calculateAccountDay(state.transactions, state.prices, state.portfolio);
   state.performance = calculatePerformanceMetrics(state.portfolio.closedTrades, state.portfolio);
   state.habits = calculateHabits(state.portfolio.closedTrades, state.transactions);
   renderCurrentView();
@@ -360,13 +364,11 @@ function renderDashboard() {
   document.getElementById('cash-ledger-note').hidden = p.cash >= 0;
 
   // 당일 손익
-  const quoteDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
-  const hasDailyQuotes = p.holdings.length > 0 && p.holdings.every(({quote}) =>
-    ['Finnhub', 'Twelve Data'].includes(quote?.source) && quote.previousClose > 0 &&
-    Number.isFinite(Date.parse(quote.updatedAt)) &&
-    quoteDay.format(new Date(quote.updatedAt)) === quoteDay.format(new Date()));
-  setEl('m-daily-pnl', !hasDailyQuotes ? '—' : fmtMoney(p.totalDailyPnL, true), `metric-value tabular ${p.totalDailyPnL >= 0 ? 'profit' : 'loss'}`);
-  setEl('m-daily-rate', !hasDailyQuotes ? '당일 시세 필요' : formatPercent(p.dailyReturnRate, true), `metric-sub tabular ${p.dailyReturnRate >= 0 ? 'profit' : 'loss'}`);
+  const daily = state.accountDay;
+  setEl('m-daily-pnl', daily.pnl == null ? '—' : fmtMoney(daily.pnl, true),
+    `metric-value tabular ${daily.pnl == null ? 'muted' : daily.pnl >= 0 ? 'profit' : 'loss'}`);
+  setEl('m-daily-rate', daily.reason || (daily.rate == null ? '미국 날짜 기준 · 수익률 —' :
+    `${formatPercent(daily.rate, true)} · 미국 날짜 기준`));
 
   // 미실현손익
   setEl('m-unrealized-pnl', fmtMoney(p.totalUnrealizedPnL, true), `metric-value tabular ${p.totalUnrealizedPnL >= 0 ? 'profit' : 'loss'}`);
@@ -1471,7 +1473,8 @@ function openTransactionModal(type = 'BUY', ticker = '', editTx = null, stockNam
 
   document.getElementById('modal-tx-title').textContent = editTx ? '거래 기록 수정' : (TX_TYPE_LABELS[type] || '거래') + ' 기록';
   document.getElementById('tx-id').value = editTx ? editTx.id : '';
-  document.getElementById('tx-date').value = editTx ? editTx.date.replace(' ', 'T') : localDateTime();
+  const dateInput = document.getElementById('tx-date');
+  dateInput.value = editTx ? editTx.date.replace(' ', 'T') : localDateTime();
   document.getElementById('tx-type').value = editTx ? editTx.type : type;
   document.getElementById('tx-ticker').value = editTx ? editTx.ticker : ticker;
   document.getElementById('tx-name').value = editTx ? (editTx.name || '') : stockName;
@@ -1841,8 +1844,8 @@ function initEvents() {
     const tax = parseFloat(document.getElementById('tx-tax').value) || 0;
     const memo = document.getElementById('tx-memo').value.trim();
 
-    if (!dateVal) {
-      alert('거래 날짜를 입력해주세요.');
+    if (!Number.isFinite(transactionTime(dateVal)) || transactionTime(dateVal) > Date.now()) {
+      alert('현재 시각 이전의 거래 일시를 입력해주세요.');
       return;
     }
 
@@ -2005,11 +2008,17 @@ function initEvents() {
   });
 
   // 전체 데이터 삭제
-  document.getElementById('btn-clear-all')?.addEventListener('click', async () => {
-    if (confirm('정말로 모든 거래내역과 복기 노트를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.')) {
-      localStorage.clear();
-      showToast('모든 데이터가 초기화되었습니다.');
-      refreshState();
+  document.getElementById('btn-clear-all')?.addEventListener('click', async event => {
+    if (!confirm('거래, 복기 노트, 관심종목, 벤치마크, 설정을 모두 삭제할까요? 이 작업은 취소할 수 없습니다.')) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await clearAllData();
+      sessionStorage.removeItem('hanriver.current-view');
+      window.location.reload();
+    } catch {
+      showToast('데이터를 모두 삭제하지 못했습니다. 다시 시도해주세요.');
+      button.disabled = false;
     }
   });
 
@@ -2084,6 +2093,7 @@ function initEvents() {
     if (state.currentView === 'benchmark' && await renderBenchmark.refreshTracking()) return;
     const viewingStocks = state.currentView === 'stocks';
     const holdings = (state.portfolio?.holdings || []).map(holding => holding.ticker);
+    if (state.currentView === 'dashboard') holdings.push(...(state.accountDay?.tickers || []));
     const tickers = [...new Set(viewingStocks ? visibleStockTickers : holdings)];
     if (!tickers.length) {
       showToast(viewingStocks ? '시세를 조회할 종목이 없습니다.' : '보유 종목이 없습니다.');

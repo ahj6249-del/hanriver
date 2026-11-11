@@ -1,3 +1,5 @@
+import { transactionTime, TX_TYPES } from './domain.js';
+
 /**
  * 한강아니면 한강뷰 (Hanriver) - Data Storage & Persistence Module
  * IndexedDB + LocalStorage 이중 영구 보관 및 JSON/CSV 내보내기/가져오기 지원
@@ -300,11 +302,82 @@ export async function exportAllData() {
 /**
  * JSON 데이터 가져오기 (복원)
  */
+const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const optionalText = (record, fields) => fields.every(key => record[key] == null || typeof record[key] === 'string');
+const validDate = date => typeof date === 'string' &&
+  /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?)?$/.test(date) &&
+  Number.isFinite(transactionTime(date)) && new Date(date.slice(0, 10)).toISOString().slice(0, 10) === date.slice(0, 10);
+const positiveNumber = value => (typeof value === 'number' || typeof value === 'string') &&
+  String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
+const validTicker = ticker => typeof ticker === 'string' && /^[A-Z0-9][A-Z0-9.:-]{0,24}$/i.test(ticker.trim());
+
+function validTransaction(row) {
+  if (!isRecord(row) || !validDate(row.date) || !Object.values(TX_TYPES).includes(row.type) ||
+      !optionalText(row, ['id', 'accountId', 'ticker', 'name', 'memo', 'createdAt']) ||
+      !['price', 'qty', 'amount', 'ratio', 'fee', 'tax'].every(key => row[key] == null ||
+        row[key] === '' || row[key] === 0 || row[key] === '0' || positiveNumber(row[key]))) return false;
+  if ([TX_TYPES.DEPOSIT, TX_TYPES.WITHDRAW, TX_TYPES.FEE].includes(row.type)) {
+    return positiveNumber(row.amount || row.price || (row.type === TX_TYPES.FEE && row.fee));
+  }
+  if (!validTicker(row.ticker)) return false;
+  if (row.type === TX_TYPES.SPLIT) return positiveNumber(row.ratio);
+  if (row.type === TX_TYPES.DIVIDEND && positiveNumber(row.amount)) return true;
+  return positiveNumber(row.qty) && positiveNumber(row.price);
+}
+
+function validJournal(note) {
+  return isRecord(note) && validDate(note.date) &&
+    optionalText(note, ['id', 'accountId', 'transactionId', 'ticker', 'side', 'buyReason',
+      'sellReason', 'idea', 'emotion', 'pros', 'cons', 'improvements', 'createdAt']) &&
+    (note.tags == null || (Array.isArray(note.tags) && note.tags.every(tag => typeof tag === 'string')));
+}
+
+function validSettings(settings) {
+  if (!isRecord(settings)) return false;
+  const validStocks = stocks => Array.isArray(stocks) && stocks.every(stock =>
+    isRecord(stock) && validTicker(stock.ticker) && optionalText(stock, ['name', 'exchange']));
+  return (settings.watchlist == null || validStocks(settings.watchlist)) &&
+    (settings.watchlists == null || (Array.isArray(settings.watchlists) &&
+      settings.watchlists.every(list => isRecord(list) && typeof list.id === 'string' &&
+        typeof list.name === 'string' && validStocks(list.stocks)))) &&
+    ['fxRate', 'targetProfitUSD', 'targetReturnPercent', 'maxAllowedMDD'].every(key =>
+      settings[key] == null || (typeof settings[key] === 'number' && Number.isFinite(settings[key])));
+}
+
+export async function clearAllData() {
+  const db = await initDB();
+  if (db) {
+    const stores = ['transactions', 'journal', 'settings'];
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(stores, 'readwrite');
+      transaction.oncomplete = resolve;
+      transaction.onabort = () => reject(transaction.error || new Error('삭제 작업이 중단되었습니다.'));
+      for (const store of stores) transaction.objectStore(store).clear();
+    });
+  }
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('hanriver_') || key.startsWith(forwardPrefix)) localStorage.removeItem(key);
+  }
+}
+
 export async function importAllData(jsonData) {
   if (!jsonData || !Array.isArray(jsonData.transactions)) {
     throw new Error('유효한 한강아니면 한강뷰 백업 파일 형식이 아닙니다.');
   }
 
+  const invalidTransaction = jsonData.transactions.findIndex(row => !validTransaction(row));
+  if (invalidTransaction >= 0) {
+    throw new Error(`백업의 ${invalidTransaction + 1}번째 거래 기록에 잘못된 날짜, 유형 또는 금액이 있습니다.`);
+  }
+  if (jsonData.journal != null && (!Array.isArray(jsonData.journal) || !jsonData.journal.every(validJournal))) {
+    throw new Error('백업의 복기 노트 형식을 확인해주세요.');
+  }
+  if (jsonData.settings != null && !validSettings(jsonData.settings)) {
+    throw new Error('백업의 설정 형식을 확인해주세요.');
+  }
+  if (jsonData.forwardBenchmarks != null && !isRecord(jsonData.forwardBenchmarks)) {
+    throw new Error('백업의 벤치마크 기록 형식을 확인해주세요.');
+  }
   const forward = Object.entries(jsonData.forwardBenchmarks ?? {});
   if (forward.some(([account, records]) => !/^[a-zA-Z0-9_-]+$/.test(account) ||
       !Array.isArray(records) || !records.every(validForwardRecord))) {

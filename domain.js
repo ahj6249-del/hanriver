@@ -31,9 +31,16 @@ export const TX_TYPE_LABELS = {
  * 거래내역 리스트를 시간순 정렬하여 포트폴리오 상태 및 손익을 계산
  * 이동평균법(Weighted Average Cost) 기반 원가 산출
  */
-export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate = 1420) {
+export function transactionTime(date) {
+  if (typeof date !== 'string') return NaN;
+  const local = date.replace(' ', 'T');
+  return Date.parse(local.length === 10 ? local + 'T00:00' : local);
+}
+
+export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate = 1420, now = Date.now()) {
   // 날짜/시간 순 정렬 (오름차순)
-  const sorted = [...transactions].sort((a, b) => a.date.replace('T', ' ').localeCompare(b.date.replace('T', ' ')) ||
+  const sorted = transactions.filter(tx => transactionTime(tx?.date) <= now)
+    .sort((a, b) => transactionTime(a.date) - transactionTime(b.date) ||
     (a.createdAt || '').localeCompare(b.createdAt || ''));
 
   let cash = 0;
@@ -349,6 +356,35 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
 /**
  * 투자 성과 상세 통계 지표 계산
  */
+const marketDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York' });
+
+export function calculateAccountDay(transactions, quotes, current, now = Date.now()) {
+  const day = marketDay.format(now);
+  const earlier = [];
+  let splitToday = false;
+  for (const tx of transactions) {
+    const time = transactionTime(tx.date);
+    if (!Number.isFinite(time) || time > now) continue;
+    if (marketDay.format(time) < day) earlier.push(tx);
+    else if (tx.type === TX_TYPES.SPLIT) splitToday = true;
+  }
+  const previousPrices = Object.create(null);
+  for (const [ticker, quote] of Object.entries(quotes)) {
+    previousPrices[ticker] = { price: quote?.previousClose };
+  }
+  const opening = calculatePortfolio(earlier, previousPrices, undefined, now);
+  const tickers = [...new Set([...opening.holdings, ...current.holdings].map(item => item.ticker))];
+  if (splitToday) return { tickers, reason: '오늘 주식분할 기록이 있어 계산을 보류했어요.' };
+  const isTodayQuote = quote => ['Finnhub', 'Twelve Data'].includes(quote?.source) &&
+    Number.isFinite(Date.parse(quote.updatedAt)) && marketDay.format(Date.parse(quote.updatedAt)) === day;
+  if (opening.holdings.some(({ticker}) => !isTodayQuote(quotes[ticker]) || !(quotes[ticker].previousClose > 0)) ||
+      current.holdings.some(({ticker}) => !isTodayQuote(quotes[ticker]) || !(quotes[ticker].price > 0))) {
+    return { tickers, reason: '당일 시세 필요' };
+  }
+  const pnl = current.totalNav - opening.totalNav - (current.netPrincipal - opening.netPrincipal);
+  return { tickers, pnl, rate: opening.totalNav > 0 ? pnl / opening.totalNav * 100 : null };
+}
+
 export function calculatePerformanceMetrics(closedTrades = [], portfolio = {}) {
   const totalTrades = closedTrades.length;
   if (totalTrades === 0) {

@@ -152,7 +152,7 @@ export async function fetchStockQuote(ticker, settings = {}) {
           const quote = {
             price: data.c,
             changePercent: data.dp || 0,
-            previousClose: data.pc || data.c,
+            previousClose: Number(data.pc) > 0 ? Number(data.pc) : null,
             source: 'Finnhub',
             updatedAt: Number(data.t) > 0 ? new Date(Number(data.t) * 1000).toISOString() : null
           };
@@ -173,7 +173,7 @@ export async function fetchStockQuote(ticker, settings = {}) {
         const data = await res.json();
         if (data.close && !isNaN(data.close)) {
           const cur = parseFloat(data.close);
-          const prev = parseFloat(data.previous_close) || cur;
+          const prev = Number(data.previous_close) > 0 ? Number(data.previous_close) : null;
           const chgPct = parseFloat(data.percent_change) || 0;
           const quote = {
             price: cur,
