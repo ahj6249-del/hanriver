@@ -142,8 +142,17 @@ async function refreshState() {
 /**
  * 뷰 라우팅
  */
-function switchView(viewName) {
+function rememberView() {
+  try {
+    sessionStorage.setItem('hanriver.current-view', JSON.stringify({
+      view: state.currentView, watchOnly: state.watchOnly
+    }));
+  } catch { /* Navigation still works without storage. */ }
+}
+
+function switchView(viewName, render = true) {
   state.currentView = viewName;
+  rememberView();
   if (viewName === 'portfolio') state.holdingsLayout = 'compact';
 
   // 사이드바 & 모바일 네비게이션 활성화 토글
@@ -184,7 +193,7 @@ function switchView(viewName) {
   const titleEl = document.getElementById('current-page-title');
   if (titleEl) titleEl.textContent = titles[viewName] || '한강아니면 한강뷰';
 
-  renderCurrentView();
+  if (render) renderCurrentView();
 }
 
 let marketCapSnapshot;
@@ -1637,10 +1646,11 @@ let renderBenchmark;
 
 function initEvents() {
   renderBenchmark = initBenchmark(() => ({
+    id: state.accountId,
     transactions: state.transactions,
     portfolio: state.portfolio,
     name: document.getElementById('account-select').selectedOptions[0]?.textContent || '실제 계좌'
-  }), () => getSettings().apiKeyFinnhub);
+  }), getSettings, async () => { await refreshState(); });
   // 네비게이션 탭 클릭
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1981,6 +1991,7 @@ function initEvents() {
 
   async function refreshVisibleQuotes() {
     if (refreshingQuotes) return;
+    if (state.currentView === 'benchmark' && await renderBenchmark.refreshTracking()) return;
     const viewingStocks = state.currentView === 'stocks';
     const holdings = (state.portfolio?.holdings || []).map(holding => holding.ticker);
     const tickers = [...new Set(viewingStocks ? visibleStockTickers : holdings)];
@@ -2080,7 +2091,7 @@ function initEvents() {
   for (const id of ['stock-mode-search', 'stock-mode-watch']) {
     document.getElementById(id).addEventListener('click', () => {
       state.watchOnly = id === 'stock-mode-watch';
-      renderStocks();
+      switchView('stocks');
     });
   }
   document.getElementById('stock-search-form').addEventListener('submit', event => {
@@ -2141,6 +2152,15 @@ function initEvents() {
 // 초기 기동
 document.addEventListener('DOMContentLoaded', async () => {
   initEvents();
+  let saved;
+  try {
+    saved = JSON.parse(sessionStorage.getItem('hanriver.current-view'));
+  } catch { /* Use the default view. */ }
+  if (typeof saved?.view === 'string' &&
+      document.getElementById('view-' + saved.view)?.classList.contains('view-section')) {
+    state.watchOnly = saved.view === 'stocks' && saved.watchOnly === true;
+    state.currentView = saved.view;
+  }
+  switchView(state.currentView, false);
   await refreshState();
-
 });

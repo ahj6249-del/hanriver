@@ -1,6 +1,7 @@
 import { getBenchmarkPrices, saveBenchmarkPrices } from './storage.js';
+import { calculatePortfolio } from './domain.js';
 import { compareBenchmark, readBenchmarkPrices } from './benchmark.js';
-import { checkFinnhubHistory, searchStock, TICKER_PATTERN } from './api.js';
+import { checkFinnhubHistory, refreshAllQuotes, searchStock, TICKER_PATTERN } from './api.js';
 
 const field = id => document.getElementById('benchmark-' + id);
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -190,13 +191,14 @@ function drawResult() {
   paintChart();
 }
 
-export function initBenchmark(getAccount, getFinnhubKey) {
+export function initBenchmark(getAccount, getSettings, onQuotes) {
+  const tracking = initTracking(getAccount, getSettings, onQuotes);
   field('check-finnhub').addEventListener('click', async () => {
     const button = field('check-finnhub');
     button.disabled = true;
     field('finnhub-status').textContent = 'QQQ 과거 일봉 권한 확인 중…';
     try {
-      field('finnhub-status').textContent = await checkFinnhubHistory(getFinnhubKey());
+      field('finnhub-status').textContent = await checkFinnhubHistory(getSettings().apiKeyFinnhub);
     } finally {
       button.disabled = false;
     }
@@ -407,7 +409,8 @@ export function initBenchmark(getAccount, getFinnhubKey) {
   window.addEventListener('resize', paintChart);
   drawStrategies();
   let restored = false;
-  return async () => {
+  const render = async () => {
+    tracking.render();
     drawCurrentPortfolio();
     if (!restored) {
       restored = true;
@@ -420,4 +423,215 @@ export function initBenchmark(getAccount, getFinnhubKey) {
     }
     if (prices) run();
   };
+  render.refreshTracking = tracking.refresh;
+  return render;
+}
+const trackingDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York' });
+const trackingTime = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short'
+});
+
+function drawTrackingChart(history) {
+  const chart = field('track-chart');
+  chart.replaceChildren();
+  chart.hidden = history.length < 2;
+  if (history.length < 2) return;
+  const values = history.flatMap(p => [p.actualReturn, p.comparisonReturn]).filter(Number.isFinite);
+  const min = Math.min(-.1, ...values), max = Math.max(.1, ...values);
+  const first = Date.parse(history[0].at), last = Date.parse(history.at(-1).at);
+  const x = point => 48 + 302 * (Date.parse(point.at) - first) / (last - first || 1);
+  const y = value => 12 + 118 * (max - value) / (max - min);
+  const add = (tag, attrs, label) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+    if (label) el.textContent = label;
+    chart.append(el);
+  };
+  for (const value of [max, 0, min]) {
+    add('line', { x1: 48, x2: 350, y1: y(value), y2: y(value), stroke: 'currentColor', opacity: .25 });
+    add('text', { x: 45, y: y(value) + 3, 'text-anchor': 'end', 'font-size': 10, fill: 'currentColor' }, percent(value));
+  }
+  for (const [key, color] of [['actualReturn', colors[0]], ['comparisonReturn', colors[1]]]) {
+    let drawing = false;
+    const path = history.map(point => {
+      if (!Number.isFinite(point[key])) {
+        drawing = false;
+        return '';
+      }
+      const part = (drawing ? 'L' : 'M') + x(point) + ' ' + y(point[key]);
+      drawing = true;
+      return part;
+    }).join(' ');
+    add('path', { d: path, stroke: color, 'stroke-width': 2, fill: 'none' });
+  }
+  add('text', { x: 48, y: 151, 'font-size': 10, fill: 'currentColor' }, history[0].day);
+  add('text', { x: 350, y: 151, 'text-anchor': 'end', 'font-size': 10, fill: 'currentColor' }, history.at(-1).day);
+}
+
+function initTracking(getAccount, getSettings, onQuotes) {
+  const select = field('track-select');
+  const form = field('track-form');
+  const status = field('track-status');
+  const picked = new Map();
+  const attempted = new Set();
+  let busy = false;
+  let activeAccount;
+  const key = id => 'hanriver.forward-benchmarks.' + id;
+  const read = id => JSON.parse(localStorage.getItem(key(id)) || '[]');
+  const current = (id, comparisons) => comparisons.find(item => item.id === picked.get(id));
+
+  function render() {
+    const { id, name } = getAccount();
+    if (id !== activeAccount) {
+      status.textContent = '';
+      form.reset();
+      activeAccount = id;
+    }
+    let comparisons;
+    try {
+      comparisons = read(id);
+    } catch {
+      status.textContent = '이 브라우저에 저장된 비교를 읽지 못했습니다.';
+      return;
+    }
+    if (!picked.has(id)) picked.set(id, comparisons.at(-1)?.id || '');
+    const item = current(id, comparisons);
+    select.replaceChildren(new Option('새 비교 만들기', ''), ...comparisons.map(saved =>
+      new Option(saved.name + ' · ' + trackingTime.format(new Date(saved.history[0].at)), saved.id)));
+    select.value = item?.id || '';
+    form.hidden = Boolean(item);
+    field('track-result').hidden = !item;
+    select.disabled = busy;
+    field('track-start').disabled = busy;
+    field('track-refresh').disabled = busy;
+    if (!item) return;
+
+    const start = item.history[0], latest = item.history.at(-1);
+    field('track-summary').textContent =
+      '시작 ' + trackingTime.format(new Date(start.at)) + ' · 시작 금액 ' + currency.format(start.actualNav) +
+      ' · 마지막 기록 ' + trackingTime.format(new Date(latest.at));
+    field('track-allocation').textContent = '비교 구성: ' + item.name;
+    field('track-values').replaceChildren(...[
+      [name, latest.actualNav, latest.actualReturn, colors[0]],
+      ['비교 포트폴리오', latest.comparisonNav, latest.comparisonReturn, colors[1]]
+    ].map(([label, nav, gain, color]) => {
+      const row = make('div');
+      const title = make('dt', label);
+      title.style.color = color;
+      row.append(title, make('dd', percent(gain) + ' · ' + currency.format(nav)));
+      return row;
+    }));
+    drawTrackingChart(item.history);
+
+    const attempt = id + '/' + item.id + '/' + trackingDate.format(new Date());
+    if (!busy && !attempted.has(attempt)) {
+      attempted.add(attempt);
+      if (latest.day !== trackingDate.format(new Date())) void record();
+    }
+  }
+
+  async function record(weights) {
+    const { id, portfolio } = getAccount();
+    if (busy) return true;
+    let comparisons;
+    try {
+      comparisons = read(id);
+    } catch {
+      status.textContent = '저장된 비교를 읽지 못했습니다.';
+      return true;
+    }
+    const item = weights ? null : current(id, comparisons);
+    if (!weights && !item) return false;
+    const settings = getSettings();
+    busy = true;
+    status.textContent = '실제 계좌와 비교 포트폴리오의 시세를 조회 중…';
+    render();
+    try {
+      const allocation = item?.allocation || weights;
+      const tickers = [...new Set([...portfolio.holdings.map(h => h.ticker),
+        ...allocation.filter(row => row.ticker !== 'CASH').map(row => row.ticker)])];
+      if (tickers.length && !settings.apiKeyFinnhub && !settings.apiKeyTwelveData) {
+        throw new Error('설정에서 시세 API 키를 연결해주세요.');
+      }
+      const quotes = await refreshAllQuotes(tickers, settings);
+      const latestAccount = getAccount();
+      if (latestAccount.id !== id) return true;
+      const required = [...new Set([...tickers, ...latestAccount.portfolio.holdings.map(h => h.ticker)])];
+      const missing = required.filter(ticker => !quotes[ticker]?.refreshed ||
+        !Number.isFinite(quotes[ticker].price) || quotes[ticker].price <= 0);
+      if (missing.length) throw new Error('시세를 받지 못해 기록하지 않았어요: ' + missing.join(', '));
+      const actual = calculatePortfolio(latestAccount.transactions, quotes, settings.fxRate);
+      if (!Number.isFinite(actual.totalNav) || (!item && actual.totalNav <= 0)) {
+        throw new Error('순자산이 0보다 커야 비교를 시작할 수 있어요.');
+      }
+      const now = new Date();
+      const at = now.toISOString(), day = trackingDate.format(now);
+      if (!item) {
+        const positions = weights.map(row => {
+          const amount = actual.totalNav * row.weight / 100;
+          return { ...row, units: row.ticker === 'CASH' ? amount : amount / quotes[row.ticker].price };
+        });
+        const created = {
+          id: crypto.randomUUID(),
+          name: weights.map(row => row.ticker + ' ' + row.weight + '%').join(', '),
+          allocation: positions,
+          history: [{ at, day, actualNav: actual.totalNav, comparisonNav: actual.totalNav,
+            principal: actual.netPrincipal, actualReturn: 0, comparisonReturn: 0 }]
+        };
+        localStorage.setItem(key(id), JSON.stringify([...read(id), created]));
+        picked.set(id, created.id);
+        form.reset();
+        status.textContent = '같은 금액으로 비교를 시작했어요.';
+      } else {
+        const latest = item.history.at(-1);
+        const comparisonNav = allocation.reduce((total, row) =>
+          total + row.units * (row.ticker === 'CASH' ? 1 : quotes[row.ticker].price), 0);
+        const principal = actual.netPrincipal, actualNav = actual.totalNav;
+        if (actualNav === latest.actualNav && comparisonNav === latest.comparisonNav && principal === latest.principal) {
+          status.textContent = '마지막 기록 이후 평가금액이 같아요.';
+        } else {
+          const history = [...item.history];
+          if (history.length > 1 && latest.day === day) history.pop();
+          const previous = history.at(-1);
+          // Treat net external flows as arriving at the end of the observation interval.
+          const adjusted = actualNav - (principal - previous.principal);
+          const actualReturn = previous.actualNav > 0 && adjusted >= 0 && previous.actualReturn != null
+            ? ((1 + previous.actualReturn / 100) * adjusted / previous.actualNav - 1) * 100 : null;
+          const comparisonReturn = (comparisonNav / history[0].comparisonNav - 1) * 100;
+          history.push({ at, day, actualNav, comparisonNav, principal, actualReturn, comparisonReturn });
+          localStorage.setItem(key(id), JSON.stringify(read(id).map(saved =>
+            saved.id === item.id ? { ...saved, history } : saved)));
+          status.textContent = '최신 평가금액을 기록했어요.';
+        }
+      }
+      await onQuotes();
+    } catch (error) {
+      if (getAccount().id === id) status.textContent = error.message || '비교 기록을 저장하지 못했습니다.';
+    } finally {
+      busy = false;
+      render();
+    }
+    return true;
+  }
+
+  for (const button of form.querySelectorAll('[data-track-preset]')) {
+    button.onclick = () => { field('track-weights').value = button.dataset.trackPreset + ' 100'; };
+  }
+  select.onchange = () => {
+    picked.set(getAccount().id, select.value);
+    status.textContent = '';
+    render();
+  };
+  form.onsubmit = event => {
+    event.preventDefault();
+    try {
+      const weights = parseWeights(field('track-weights').value);
+      if (weights.length > 20) throw new Error('비교 종목은 20개까지 넣을 수 있어요.');
+      void record(weights);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  };
+  field('track-refresh').onclick = () => record();
+  return { render, refresh: () => record() };
 }
