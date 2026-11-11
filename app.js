@@ -925,6 +925,17 @@ function saveWatchlists(settings, lists, activeId) {
   return true;
 }
 
+function confirmWatchRemoval(ticker) {
+  const dialog = document.getElementById('watch-removal-dialog');
+  if (dialog.open) return Promise.resolve(false);
+  document.getElementById('watch-removal-ticker').textContent = ticker;
+  dialog.returnValue = '';
+  return new Promise(resolve => {
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'remove'), { once: true });
+    dialog.showModal();
+  });
+}
+
 async function renderStocks() {
   const container = document.getElementById('stock-search-results');
   const status = document.getElementById('stock-search-status');
@@ -1000,12 +1011,17 @@ async function renderStocks() {
   for (const button of container.querySelectorAll('.watch-toggle')) {
     button.onclick = async () => {
       const stock = results.find(item => item.ticker === button.dataset.ticker);
+      const alreadySaved = getWatchlists(getSettings())
+        .find(list => list.id === selected.id)?.stocks.some(item => item?.ticker === stock.ticker);
+      if (alreadySaved && !await confirmWatchRemoval(stock.ticker)) return;
+
       const settings = getSettings();
       const lists = getWatchlists(settings);
       const target = lists.find(list => list.id === selected.id);
       if (!target) return;
       const saved = target.stocks.filter(Boolean);
       const exists = saved.some(item => item.ticker === stock.ticker);
+      if (exists !== Boolean(alreadySaved)) return;
       const stocks = exists ? saved.filter(item => item.ticker !== stock.ticker) : [
         ...saved, { ticker: stock.ticker, name: stock.name === '티커 직접 입력' ? '' : stock.name,
           exchange: stock.exchange, etf: stock.etf }

@@ -706,6 +706,17 @@
     </form>
   </dialog>
 
+  <dialog id="watch-removal-dialog" class="custom-modal" aria-labelledby="watch-removal-title" aria-describedby="watch-removal-message">
+    <form method="dialog">
+      <div class="modal-header"><h3 id="watch-removal-title">관심종목에서 제외할까요?</h3></div>
+      <div class="modal-body" id="watch-removal-message"><strong id="watch-removal-ticker"></strong> 종목을 이 목록에서 제외합니다.</div>
+      <div class="modal-footer">
+        <button class="btn-secondary" value="cancel" autofocus>취소</button>
+        <button class="btn-primary" value="remove">제외</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="modal-transaction" class="custom-modal" aria-labelledby="modal-tx-title">
     <form id="form-transaction" method="dialog">
       <div class="modal-header">
