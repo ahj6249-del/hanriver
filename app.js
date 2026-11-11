@@ -254,7 +254,11 @@ function renderDashboard() {
   document.getElementById('ledger-warning').hidden = p.invalidCloseIds.length === 0;
   setEl('m-cash', fmtMoney(p.cash));
   const cashRatio = p.totalNav > 0 ? (p.cash / p.totalNav) * 100 : 0;
-  setEl('m-cash-ratio', `비중 ${cashRatio.toFixed(1)}%`);
+  const hasShort = p.holdings.some(holding => holding.side === 'SHORT');
+  const cashDetail = p.cash < 0 ? '기록상 현금 부족' : hasShort ? '공매도 대금 포함' :
+    p.totalNav > 0 ? `순자산 대비 ${cashRatio.toFixed(1)}%` : '입출금·매매 기록 기준';
+  setEl('m-cash-ratio', cashDetail);
+  document.getElementById('cash-ledger-note').hidden = p.cash >= 0;
 
   // 당일 손익
   const quoteDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
@@ -947,31 +951,27 @@ function drawAllocationDonut() {
   ctx.clearRect(0, 0, w, h);
 
   const p = state.portfolio;
-  if (!p || p.holdings.length === 0) {
+  const colors = ['#10b981', '#3b82f6', '#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+  const items = p.holdings.filter(holding => holding.evalValue > 0).map((holding, index) => ({
+    ticker: holding.ticker,
+    val: holding.evalValue,
+    color: colors[index % colors.length]
+  }));
+  if (p.cash > 0) items.push({ ticker: '현금', val: p.cash, color: '#475569' });
+
+  const liabilities = p.holdings.filter(holding => holding.evalValue < 0).map(holding => ({
+    label: `${holding.ticker} 공매도 상환액`, value: holding.evalValue
+  }));
+  if (p.cash < 0) liabilities.push({ label: '현금 부족액', value: p.cash });
+
+  const assets = items.reduce((sum, item) => sum + item.val, 0);
+  for (const item of items) item.pct = item.val / assets * 100;
+
+  if (!assets) {
     ctx.fillStyle = '#64748b';
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('보유 종목 비중이 없습니다.', w / 2, h / 2);
-    legend.innerHTML = '';
-    return;
-  }
-
-  const colors = ['#10b981', '#3b82f6', '#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
-  const items = p.holdings.map((h, i) => ({
-    ticker: h.ticker,
-    val: h.evalValue,
-    pct: h.weightPercent,
-    color: colors[i % colors.length]
-  }));
-
-  // 현금 비중 추가
-  if (p.cash > 0 && p.totalNav > 0) {
-    items.push({
-      ticker: '현금 (USD)',
-      val: p.cash,
-      pct: (p.cash / p.totalNav) * 100,
-      color: '#475569'
-    });
+    ctx.fillText('표시할 자산 비중이 없습니다.', w / 2, h / 2);
   }
 
   const cx = w / 2;
@@ -1000,10 +1000,10 @@ function drawAllocationDonut() {
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 15px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('총 자산', cx, cy - 6);
+  if (assets) ctx.fillText('자산 합계', cx, cy - 6);
   ctx.fillStyle = '#10b981';
   ctx.font = 'bold 13px monospace';
-  ctx.fillText(fmtMoney(p.totalNav), cx, cy + 14);
+  if (assets) ctx.fillText(fmtMoney(assets), cx, cy + 14);
 
   // 범례 생성
   legend.innerHTML = items.map(item => `
@@ -1014,6 +1014,8 @@ function drawAllocationDonut() {
       </div>
       <span class="tabular muted">${item.pct.toFixed(1)}% (${fmtMoney(item.val)})</span>
     </div>
+  `).join('') + liabilities.map(item => `
+    <div class="allocation-offset"><span>${escapeHTML(item.label)}</span><strong>${fmtMoney(item.value)}</strong></div>
   `).join('');
 }
 

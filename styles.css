@@ -1141,3 +1141,5 @@ dialog::backdrop {
 .watch-chart-symbols { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .watch-chart-symbols:empty { display: none; }
 .watch-chart-symbols button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
+
+.allocation-offset { display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); }
