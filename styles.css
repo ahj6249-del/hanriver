@@ -1023,7 +1023,7 @@ dialog::backdrop {
   .content-area { min-width: 0; padding: 12px; }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     overflow: visible;
     padding-inline: max(4px, env(safe-area-inset-left, 0px)) max(4px, env(safe-area-inset-right, 0px));
     white-space: normal;

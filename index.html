@@ -540,9 +540,6 @@
       <button type="button" class="mobile-nav-btn" data-view="portfolio">
         <span class="icon" aria-hidden="true">◈</span><span>보유 종목</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-view="transactions">
-        <span class="icon" aria-hidden="true">≡</span><span>거래내역</span>
-      </button>
       <button type="button" class="mobile-nav-btn" data-view="stocks">
         <span class="icon" aria-hidden="true">⌕</span><span>종목 검색</span>
       </button>
@@ -552,11 +549,12 @@
       <details id="mobile-more" class="mobile-more">
         <summary class="mobile-nav-btn"><span class="icon" aria-hidden="true">···</span><span>더보기</span></summary>
         <div class="mobile-more-panel">
+          <button type="button" id="mobile-install">앱 설치</button>
+          <button type="button" data-view="transactions">거래내역</button>
           <button type="button" data-view="performance">투자 성과</button>
           <button type="button" data-view="habits">매매 습관</button>
           <button type="button" data-view="journal">복기 노트</button>
           <button type="button" data-view="settings">설정</button>
-          <button type="button" id="mobile-install">앱 설치</button>
         </div>
       </details>
     </nav>
