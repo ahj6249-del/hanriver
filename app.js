@@ -121,6 +121,7 @@ async function refreshState() {
   document.getElementById('demo-notice').hidden = !isDemo;
   document.getElementById('account-select').value = state.accountId;
   document.getElementById('btn-load-sample-top').textContent = isDemo ? '예시 닫기' : '예시 보기';
+  document.getElementById('mobile-demo').textContent = isDemo ? '예시 계좌 닫기' : '예시 계좌 보기';
   document.getElementById('btn-load-sample').textContent = isDemo ? '예시 계좌 닫기' : '예시 계좌 보기';
 
   state.portfolio = calculatePortfolio(state.transactions, state.prices, state.settings.fxRate);
@@ -139,9 +140,15 @@ function switchView(viewName) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.view === viewName);
   });
-  document.querySelectorAll('.mobile-nav-btn').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === viewName);
-  });
+  const mobileMore = document.getElementById('mobile-more');
+  mobileMore.open = false;
+  for (const button of document.querySelectorAll('.mobile-nav [data-view]')) {
+    const active = button.dataset.view === viewName;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+  mobileMore.querySelector('summary').classList.toggle('active', Boolean(mobileMore.querySelector('[aria-current]')));
 
   // 섹션 표시 토글
   document.querySelectorAll('.view-section').forEach(sec => {
@@ -286,7 +293,7 @@ function renderPortfolio() {
   const p = state.portfolio;
 
   if (!p || p.holdings.length === 0) {
-    document.getElementById('holdings-cards-mobile').replaceChildren();
+    document.getElementById('holdings-cards-mobile').innerHTML = '<p class="mobile-empty muted">이 계좌에 보유 종목이 없습니다.</p>';
     tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted);">현재 보유 중인 주식 포지션이 없습니다.<br><button class="btn-primary" id="btn-empty-port-add" style="margin-top: 12px;">첫 매수 기록하기</button></td></tr>`;
     const btn = document.getElementById('btn-empty-port-add');
     if (btn) btn.onclick = () => openTransactionModal('BUY');
@@ -438,7 +445,7 @@ function renderTransactions() {
   }
 
   if (list.length === 0) {
-    document.getElementById('tx-cards-mobile').replaceChildren();
+    document.getElementById('tx-cards-mobile').innerHTML = '<p class="mobile-empty muted">표시할 거래내역이 없습니다.</p>';
     tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 30px; color: var(--text-muted);">표시할 거래내역이 없습니다.</td></tr>`;
     return;
   }
@@ -700,7 +707,7 @@ function renderJournal() {
           <button class="btn-secondary btn-del-journal" data-id="${escapeHTML(n.id)}" style="padding: 4px 10px; font-size: 11px; color: #ef4444;">삭제</button>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; font-size: 13px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; font-size: 13px;">
           ${n.buyReason ? `<div><span class="muted" style="font-size: 11.5px; display:block;">매수 이유</span><strong>${escapeHTML(n.buyReason)}</strong></div>` : ''}
           ${n.sellReason ? `<div><span class="muted" style="font-size: 11.5px; display:block;">매도 이유</span><strong>${escapeHTML(n.sellReason)}</strong></div>` : ''}
           ${n.emotion ? `<div><span class="muted" style="font-size: 11.5px; display:block;">당시 심리</span><span>${escapeHTML(n.emotion)}</span></div>` : ''}
@@ -1142,7 +1149,11 @@ function openTransactionModal(type = 'BUY', ticker = '', editTx = null, stockNam
   renderRecentTickers();
   updateTxModalFields();
   modal.showModal();
-  document.getElementById(ticker && type === TX_TYPES.BUY ? 'tx-qty' : 'tx-ticker').focus();
+  if (window.matchMedia('(max-width: 860px) and (pointer: coarse)').matches) {
+    document.getElementById('btn-close-tx-modal').focus();
+  } else {
+    document.getElementById(ticker && type === TX_TYPES.BUY ? 'tx-qty' : 'tx-ticker').focus();
+  }
 }
 
 let symbolSearchVersion = 0;
@@ -1312,6 +1323,24 @@ function initEvents() {
   });
 
   // 상단 새 거래 버튼
+  const mobileMore = document.getElementById('mobile-more');
+  document.addEventListener('click', event => {
+    if (mobileMore.open && !mobileMore.contains(event.target)) mobileMore.open = false;
+  });
+  mobileMore.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && mobileMore.open) {
+      mobileMore.open = false;
+      mobileMore.querySelector('summary').focus();
+    }
+  });
+  document.getElementById('mobile-install').addEventListener('click', () => {
+    mobileMore.open = false;
+    document.getElementById('btn-install-pwa').click();
+  });
+  document.getElementById('mobile-demo').addEventListener('click', () => {
+    mobileMore.open = false;
+    document.getElementById('btn-load-sample-top').click();
+  });
   document.getElementById('btn-mobile-buy')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-quick-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));

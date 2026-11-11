@@ -3,7 +3,7 @@
  * 오프라인 캐싱 및 Chrome PWA 독립 앱 실행 지원
  */
 
-const CACHE_NAME = 'hanriver-shell-v6-20261112';
+const CACHE_NAME = 'hanriver-shell-v7-20261112';
 
 const ASSETS_TO_CACHE = [
   './',

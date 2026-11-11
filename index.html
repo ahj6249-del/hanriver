@@ -100,7 +100,7 @@
           <button class="btn-header-action" id="btn-install-pwa" style="background: rgba(16,185,129,0.15); border-color: var(--accent-emerald); color: var(--accent-emerald); font-weight: 600;">
             <span>📲</span> <span class="hide-mobile">앱 설치</span>
           </button>
-          <button class="btn-header-action" id="btn-header-refresh" title="시세 및 통계 새로고침">
+          <button class="btn-header-action" id="btn-header-refresh" title="시세 및 통계 새로고침" aria-label="시세 갱신">
             <span id="refresh-spin-icon">↻</span> <span class="hide-mobile">시세 갱신</span>
           </button>
           <button class="btn-header-action" id="btn-header-settings" title="설정">
@@ -136,8 +136,8 @@
 
           <p class="data-notice" id="ledger-warning" role="status" hidden>보유 수량을 초과한 매도·숏커버가 집계에서 제외됐습니다. 거래내역에서 날짜와 수량을 확인해주세요.</p>
           <!-- 핵심 지표 카드 그리드 -->
-          <div class="metrics-grid">
-            <div class="card metric-card">
+          <div class="metrics-grid dashboard-metrics">
+            <div class="card metric-card nav-metric">
               <span class="metric-label">총 계좌 평가금액 (NAV)</span>
               <span class="metric-value tabular" id="m-total-nav">$0.00</span>
               <span class="metric-sub muted" id="m-total-nav-krw">₩0</span>
@@ -543,48 +543,39 @@
     </div>
 
     <!-- 모바일 하단 내비게이션 바 -->
-    <nav class="mobile-nav">
-      <button class="mobile-nav-btn active" data-view="dashboard">
-        <span class="icon">📊</span>
-        <span>대시보드</span>
+    <nav class="mobile-nav" aria-label="주 메뉴">
+      <button type="button" class="mobile-nav-btn active" data-view="dashboard" aria-current="page">
+        <span class="icon" aria-hidden="true">▦</span><span>홈</span>
       </button>
-      <button class="mobile-nav-btn" data-view="portfolio">
-        <span class="icon">💼</span>
-        <span>포트폴리오</span>
+      <button type="button" class="mobile-nav-btn" data-view="portfolio">
+        <span class="icon" aria-hidden="true">◈</span><span>보유 종목</span>
       </button>
-      <button class="mobile-nav-btn" data-view="habits">
-        <span class="icon">🧠</span>
-        <span>매매습관</span>
+      <button type="button" class="mobile-nav-btn" data-view="transactions">
+        <span class="icon" aria-hidden="true">≡</span><span>거래내역</span>
       </button>
-      <button class="mobile-nav-btn" data-view="performance">
-        <span class="icon">📈</span>
-        <span>성과분석</span>
+      <button type="button" class="mobile-nav-btn" data-view="stocks">
+        <span class="icon" aria-hidden="true">⌕</span><span>종목 검색</span>
       </button>
-      <button class="mobile-nav-btn" data-view="journal">
-        <span class="icon">📓</span>
-        <span>복기노트</span>
-      </button>
-      <button class="mobile-nav-btn" data-view="stocks">
-        <span class="icon">🔍</span>
-        <span>시세차트</span>
-      </button>
-      <button class="mobile-nav-btn" data-view="transactions">
-        <span class="icon">📝</span>
-        <span>거래내역</span>
-      </button>
-      <button class="mobile-nav-btn" data-view="settings">
-        <span class="icon">⚙️</span>
-        <span>설정</span>
-      </button>
+      <details id="mobile-more" class="mobile-more">
+        <summary class="mobile-nav-btn"><span class="icon" aria-hidden="true">···</span><span>더보기</span></summary>
+        <div class="mobile-more-panel">
+          <button type="button" data-view="performance">투자 성과</button>
+          <button type="button" data-view="habits">매매 습관</button>
+          <button type="button" data-view="journal">복기 노트</button>
+          <button type="button" data-view="settings">설정</button>
+          <button type="button" id="mobile-demo">예시 계좌</button>
+          <button type="button" id="mobile-install">앱 설치</button>
+        </div>
+      </details>
     </nav>
   </div>
 
   <!-- 모달: 거래 추가/수정 다이얼로그 -->
-  <dialog id="modal-transaction" class="custom-modal">
+  <dialog id="modal-transaction" class="custom-modal" aria-labelledby="modal-tx-title">
     <form id="form-transaction" method="dialog">
       <div class="modal-header">
         <h3 id="modal-tx-title">새 거래 기록</h3>
-        <button type="button" class="btn-close" id="btn-close-tx-modal">&times;</button>
+        <button type="button" class="btn-close" id="btn-close-tx-modal" aria-label="거래 입력 닫기">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="tx-id">
