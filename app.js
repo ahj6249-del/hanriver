@@ -65,6 +65,7 @@ const state = {
   currentView: 'dashboard',
   accountId: DEFAULT_ACCOUNT,
   watchOnly: false,
+  holdingsLayout: 'compact',
   currency: 'USD', // 'USD' or 'KRW'
   transactions: [],
   journalNotes: [],
@@ -142,6 +143,7 @@ async function refreshState() {
  */
 function switchView(viewName) {
   state.currentView = viewName;
+  if (viewName === 'portfolio') state.holdingsLayout = 'compact';
 
   // 사이드바 & 모바일 네비게이션 활성화 토글
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -297,7 +299,7 @@ function renderPortfolio() {
   const tbody = document.getElementById('holdings-tbody');
   if (!tbody) return;
   const p = state.portfolio;
-  const showDetails = state.settings.holdingsLayout === 'detail';
+  const showDetails = state.holdingsLayout === 'detail';
   const layout = document.getElementById('holdings-layout');
   layout.hidden = !p?.holdings.length;
   document.getElementById('holdings-layout-compact').setAttribute('aria-pressed', String(!showDetails));
@@ -1538,14 +1540,7 @@ function initEvents() {
   document.getElementById('btn-add-tx-from-port')?.addEventListener('click', () => openTransactionModal('BUY'));
   for (const layout of ['compact', 'detail']) {
     document.getElementById('holdings-layout-' + layout).addEventListener('click', () => {
-      const settings = { ...getSettings(), holdingsLayout: layout };
-      try {
-        saveSettings(settings);
-      } catch {
-        showToast('보기 설정을 저장하지 못했습니다.');
-        return;
-      }
-      state.settings = settings;
+      state.holdingsLayout = layout;
       renderPortfolio();
     });
   }
