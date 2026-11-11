@@ -67,6 +67,7 @@
         <button class="nav-item" data-view="stocks">
           <span class="icon">🔍</span> 종목 검색 & 시세
         </button>
+        <button class="nav-item" data-view="market-cap">시가총액 TOP 100</button>
         <button class="nav-item" data-view="settings">
           <span class="icon">⚙️</span> 설정
         </button>
@@ -436,6 +437,25 @@
 
         </section>
 
+        <section id="view-market-cap" class="view-section">
+          <div class="card">
+            <div class="chart-header">
+              <div>
+                <h3 class="card-title">미국 상장 종목 시가총액 순위</h3>
+                <p id="market-cap-status" class="muted" role="status"></p>
+              </div>
+              <button type="button" id="market-cap-refresh" class="btn-secondary">순위 갱신</button>
+            </div>
+            <div class="table-container">
+              <table class="market-cap-table">
+                <thead><tr><th>순위</th><th>종목</th><th>시가총액</th><th>당일 등락률</th></tr></thead>
+                <tbody id="market-cap-rows"></tbody>
+              </table>
+            </div>
+            <a class="muted" href="https://www.nasdaq.com/market-activity/stocks/screener" target="_blank" rel="noopener">출처 Nasdaq</a>
+          </div>
+        </section>
+
         <!-- 8. 설정 뷰 -->
         <section id="view-settings" class="view-section">
           <div class="card" style="margin-bottom: 20px;">
@@ -548,6 +568,7 @@
         <summary class="mobile-nav-btn"><span class="icon" aria-hidden="true">···</span><span>더보기</span></summary>
         <div class="mobile-more-panel">
           <button type="button" id="mobile-install">앱 설치</button>
+          <button type="button" data-view="market-cap">시가총액 TOP 100</button>
           <button type="button" data-view="transactions">거래내역</button>
           <button type="button" data-view="performance">투자 성과</button>
           <button type="button" data-view="habits">매매 습관</button>

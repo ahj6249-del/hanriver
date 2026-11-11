@@ -1209,3 +1209,11 @@ dialog::backdrop {
   .holdings-detailed .holding-entry { border: 0; }
   .holdings-detailed .holding-entry > summary { display: none; }
 }
+
+.market-cap-table { width: 100%; }
+.market-cap-table :is(th, td):nth-child(n+3) { text-align: right; white-space: nowrap; }
+.market-cap-name { display: block; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+@media (max-width: 540px) {
+  .market-cap-table :is(th, td) { padding-inline: 5px; font-size: 11px; }
+  .market-cap-name { max-width: 12ch; }
+}

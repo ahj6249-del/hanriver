@@ -176,12 +176,74 @@ function switchView(viewName) {
     habits: '매매 습관 분석',
     journal: '투자 복기 노트',
     stocks: '종목 검색 & 시세',
+    'market-cap': '시가총액 TOP 100',
     settings: '설정'
   };
   const titleEl = document.getElementById('current-page-title');
   if (titleEl) titleEl.textContent = titles[viewName] || '한강아니면 한강뷰';
 
   renderCurrentView();
+}
+
+let marketCapSnapshot;
+let marketCapRequest;
+const marketCapFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact', maximumFractionDigits: 2, style: 'currency', currency: 'USD'
+});
+
+async function renderMarketCap(refresh = false) {
+  const status = document.getElementById('market-cap-status');
+  const button = document.getElementById('market-cap-refresh');
+  const table = document.getElementById('market-cap-rows');
+  const draw = snapshot => {
+    status.textContent = `${snapshot.asOf} 미국 거래일 기준 · USD`;
+    table.innerHTML = snapshot.rows.map((stock, index) => {
+      const change = stock.changePercent;
+      const movement = change === null ? '—' : formatPercent(change, true);
+      const color = change > 0 ? 'profit' : change < 0 ? 'loss' : 'muted';
+      return `<tr><td>${index + 1}</td><td><strong>${escapeHTML(stock.ticker)}</strong>
+        <span class="market-cap-name muted">${escapeHTML(stock.name)}</span></td>
+        <td class="tabular">${marketCapFormatter.format(stock.marketCap)}</td>
+        <td class="tabular ${color}">${movement}</td></tr>`;
+    }).join('');
+  };
+
+  if (marketCapSnapshot) draw(marketCapSnapshot);
+  else status.textContent = '시가총액 순위를 불러오는 중…';
+  if (marketCapRequest || (marketCapSnapshot && !refresh)) return;
+  button.disabled = true;
+  const request = async url => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error('Ranking unavailable');
+    const snapshot = await response.json();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.asOf) || snapshot.rows?.length !== 100) {
+      throw new Error('Ranking incomplete');
+    }
+    return snapshot;
+  };
+  marketCapRequest = (async () => {
+    if (!marketCapSnapshot) {
+      try {
+        marketCapSnapshot = await request('./market-cap-top100.json');
+        draw(marketCapSnapshot);
+      } catch {
+        status.textContent = '시가총액 순위를 불러오지 못했습니다.';
+      }
+    }
+    try {
+      const fresh = await request('https://raw.githubusercontent.com/ahj6249-del/hanriver/main/market-cap-top100.json');
+      if (!marketCapSnapshot || fresh.asOf >= marketCapSnapshot.asOf) marketCapSnapshot = fresh;
+      draw(marketCapSnapshot);
+    } catch {
+      if (marketCapSnapshot) status.textContent += ' · 저장된 순위';
+    }
+  })();
+  try {
+    await marketCapRequest;
+  } finally {
+    marketCapRequest = undefined;
+    button.disabled = false;
+  }
 }
 
 function renderCurrentView() {
@@ -206,6 +268,9 @@ function renderCurrentView() {
       break;
     case 'stocks':
       renderStocks();
+      break;
+    case 'market-cap':
+      renderMarketCap();
       break;
     case 'settings':
       renderSettings();
@@ -1894,6 +1959,8 @@ function initEvents() {
       renderStocks();
     });
   }
+
+  document.getElementById('market-cap-refresh').addEventListener('click', () => renderMarketCap(true));
 
   // 헤더 설정 버튼
   document.getElementById('btn-header-settings')?.addEventListener('click', () => switchView('settings'));
