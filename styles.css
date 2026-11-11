@@ -1168,3 +1168,30 @@ dialog::backdrop {
   }
   .stock-results-list .stock-result-quote { flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; }
 }
+
+#holdings-layout { display: none; }
+@media (max-width: 768px) {
+  #holdings-layout:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+  #holdings-layout button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
+  #holdings-cards-mobile:not(.holdings-detailed) { gap: 2px; }
+  .holding-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, .9fr);
+    align-items: center;
+    gap: 6px;
+    padding: 7px 6px;
+    font-size: 13px;
+    text-align: right;
+    list-style: none;
+  }
+  .holding-summary > span { min-width: 0; overflow-wrap: anywhere; }
+  .holding-summary > :first-child { text-align: left; }
+  .holding-entry > summary { min-height: 44px; cursor: pointer; }
+  .holding-entry > summary::-webkit-details-marker { display: none; }
+  .holding-summary-labels { color: var(--text-secondary); font-size: 11px; }
+  .holding-entry { border-top: 1px solid var(--border-color); }
+  .holding-entry[open] .holding-chevron { display: inline-block; transform: rotate(180deg); }
+  .holding-symbol small { display: inline-block; margin-left: 4px; color: var(--text-secondary); }
+  .holdings-detailed .holding-entry { border: 0; }
+  .holdings-detailed .holding-entry > summary { display: none; }
+}

@@ -297,6 +297,11 @@ function renderPortfolio() {
   const tbody = document.getElementById('holdings-tbody');
   if (!tbody) return;
   const p = state.portfolio;
+  const showDetails = state.settings.holdingsLayout === 'detail';
+  const layout = document.getElementById('holdings-layout');
+  layout.hidden = !p?.holdings.length;
+  document.getElementById('holdings-layout-compact').setAttribute('aria-pressed', String(!showDetails));
+  document.getElementById('holdings-layout-detail').setAttribute('aria-pressed', String(showDetails));
 
   if (!p || p.holdings.length === 0) {
     document.getElementById('holdings-cards-mobile').innerHTML = '<p class="mobile-empty muted">이 계좌에 보유 종목이 없습니다.</p>';
@@ -348,10 +353,19 @@ function renderPortfolio() {
   // 모바일 전용 카드뷰 렌더링
   const mobileContainer = document.getElementById('holdings-cards-mobile');
   if (mobileContainer) {
-    mobileContainer.innerHTML = p.holdings.map(h => {
+    mobileContainer.classList.toggle('holdings-detailed', showDetails);
+    mobileContainer.innerHTML = (showDetails ? '' : `<div class="holding-summary holding-summary-labels">
+      <span>종목</span><span>평가금액</span><span>수익률</span>
+    </div>`) + p.holdings.map(h => {
       const isProfit = h.unrealizedPnL >= 0;
-          return `
-        <div class="port-card">
+      return `
+        <details class="holding-entry"${showDetails ? ' open' : ''}>
+          <summary class="holding-summary">
+            <span class="holding-symbol"><strong>${escapeHTML(h.ticker)}</strong>${h.side === 'SHORT' ? '<small>숏</small>' : ''}</span>
+            <span class="tabular">${fmtMoney(h.evalValue)}</span>
+            <span class="tabular ${isProfit ? 'profit' : 'loss'}">${formatPercent(h.returnRate, true)} <span class="holding-chevron" aria-hidden="true">⌄</span></span>
+          </summary>
+          <div class="port-card">
           <div class="port-card-header">
             <div class="port-card-title">
               <strong class="port-ticker">${escapeHTML(h.ticker)}</strong>
@@ -387,7 +401,8 @@ function renderPortfolio() {
             <button class="btn-secondary btn-tv-chart-open" data-ticker="${escapeHTML(h.ticker)}">📈 차트</button>
             <button class="btn-secondary btn-price-edit" data-ticker="${escapeHTML(h.ticker)}" data-price="${h.currentPrice}">시세</button>
           </div>
-        </div>
+          </div>
+        </details>
       `;
     }).join('');
   }
@@ -1529,6 +1544,20 @@ function initEvents() {
   document.getElementById('btn-quick-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-add-tx-from-port')?.addEventListener('click', () => openTransactionModal('BUY'));
+  for (const layout of ['compact', 'detail']) {
+    document.getElementById('holdings-layout-' + layout).addEventListener('click', () => {
+      const settings = { ...getSettings(), holdingsLayout: layout };
+      try {
+        saveSettings(settings);
+      } catch {
+        showToast('보기 설정을 저장하지 못했습니다.');
+        return;
+      }
+      state.settings = settings;
+      renderPortfolio();
+    });
+  }
+
 
   document.getElementById('account-select').addEventListener('change', async (event) => {
     state.accountId = event.target.value;
