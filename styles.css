@@ -1249,3 +1249,9 @@ dialog::backdrop {
 #benchmark-track-result .btn-secondary { margin-block: 8px; }
 #benchmark-track-status { margin-block: 6px; }
 #benchmark-history > summary { cursor: pointer; margin-bottom: 12px; }
+#benchmark-track-rows { display: grid; gap: 8px; margin-bottom: 8px; }
+.benchmark-track-row { display: grid; grid-template-columns: minmax(0, 1fr) 78px auto; align-items: start; gap: 6px; }
+.benchmark-track-row input { min-width: 0; }
+.benchmark-track-matches { grid-column: 1 / -1; }
+.benchmark-track-matches:empty { display: none; }
+.benchmark-track-matches button { max-width: 100%; text-align: left; overflow-wrap: anywhere; }

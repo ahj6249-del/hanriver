@@ -458,15 +458,18 @@
                 <button type="button" class="btn-secondary" data-track-preset="SPY">SPY 100%</button>
               </div>
               <div class="form-group">
-                <label for="benchmark-track-weights">비교 포트폴리오 구성</label>
-                <input id="benchmark-track-weights" class="form-input" required autocomplete="off" placeholder="QQQ 60, SPY 30, CASH 10" aria-describedby="benchmark-track-help">
-                <p id="benchmark-track-help" class="muted">티커와 비중을 입력하세요. 합계는 100%이며 CASH는 현금입니다.</p>
+                <div id="benchmark-track-rows" role="group" aria-label="비교 포트폴리오 구성"></div>
+                <div class="benchmark-controls">
+                  <button type="button" id="benchmark-track-add" class="btn-secondary">종목 추가</button>
+                  <output id="benchmark-track-total" aria-live="polite"></output>
+                </div>
               </div>
               <button type="submit" class="btn-primary" id="benchmark-track-start">현재가로 비교 시작</button>
             </form>
             <div id="benchmark-track-result" hidden>
               <p id="benchmark-track-summary"></p>
               <p id="benchmark-track-allocation" class="muted"></p>
+              <p id="benchmark-track-gap" class="muted"></p>
               <dl id="benchmark-track-values" class="benchmark-current-summary"></dl>
               <svg id="benchmark-track-chart" role="img" aria-label="실제 계좌와 비교 포트폴리오의 누적 수익률 그래프" viewBox="0 0 360 156"></svg>
               <p class="muted">실제 계좌의 매매는 반영하고 입출금은 수익률에서 제외해요. 비교 쪽은 시작 수량을 유지하며 배당·분할은 반영하지 않습니다.</p>

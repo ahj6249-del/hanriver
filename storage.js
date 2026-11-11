@@ -253,6 +253,24 @@ export function isLegacySample(row, examples) {
 /**
  * 전체 데이터 JSON 백업 내보내기
  */
+const forwardPrefix = 'hanriver.forward-benchmarks.';
+export const getForwardBenchmarks = account => JSON.parse(localStorage.getItem(forwardPrefix + account) || '[]');
+export const saveForwardBenchmarks = (account, records) =>
+  localStorage.setItem(forwardPrefix + account, JSON.stringify(records));
+
+function validForwardRecord(record) {
+  const finite = Number.isFinite;
+  return typeof record?.id === 'string' && typeof record.name === 'string' &&
+    Array.isArray(record.allocation) && record.allocation.length > 0 &&
+    record.allocation.every(row => /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(row?.ticker ?? '') &&
+      finite(row.units) && row.units > 0 && finite(row.weight) && row.weight > 0) &&
+    Array.isArray(record.history) && record.history.length > 0 &&
+    record.history.every(point => point && finite(Date.parse(point.at)) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(point.day) && finite(Date.parse(point.day)) && finite(point.actualNav) &&
+      finite(point.comparisonNav) && finite(point.principal) && finite(point.comparisonReturn) &&
+      (point.actualReturn === null || finite(point.actualReturn)));
+}
+
 export async function exportAllData() {
   const transactions = await getAllTransactions();
   const journal = await getAllJournalNotes();
@@ -260,7 +278,10 @@ export async function exportAllData() {
 
   const data = {
     brand: '한강아니면 한강뷰 (Hanriver)',
-    version: '1.0',
+    version: '1.1',
+    forwardBenchmarks: Object.fromEntries(Object.keys(localStorage)
+      .filter(key => key.startsWith(forwardPrefix))
+      .map(key => [key.slice(forwardPrefix.length), getForwardBenchmarks(key.slice(forwardPrefix.length))])),
     exportedAt: new Date().toISOString(),
     transactions,
     journal,
@@ -284,6 +305,11 @@ export async function importAllData(jsonData) {
     throw new Error('유효한 한강아니면 한강뷰 백업 파일 형식이 아닙니다.');
   }
 
+  const forward = Object.entries(jsonData.forwardBenchmarks ?? {});
+  if (forward.some(([account, records]) => !/^[a-zA-Z0-9_-]+$/.test(account) ||
+      !Array.isArray(records) || !records.every(validForwardRecord))) {
+    throw new Error('백업의 벤치마크 기록 형식을 확인해주세요.');
+  }
   for (const t of jsonData.transactions) {
     await saveTransaction(t);
   }
@@ -295,6 +321,16 @@ export async function importAllData(jsonData) {
   if (jsonData.settings) {
     const { apiKeyFinnhub, apiKeyTwelveData, ...settings } = jsonData.settings;
     saveSettings({ ...getSettings(), ...settings });
+  }
+  for (const [account, records] of forward) {
+    const merged = new Map(getForwardBenchmarks(account).map(record => [record.id, record]));
+    for (const record of records) {
+      const existing = merged.get(record.id);
+      if (!existing || Date.parse(record.history.at(-1).at) > Date.parse(existing.history.at(-1).at)) {
+        merged.set(record.id, record);
+      }
+    }
+    saveForwardBenchmarks(account, [...merged.values()]);
   }
 }
 

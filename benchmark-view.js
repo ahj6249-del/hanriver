@@ -1,4 +1,4 @@
-import { getBenchmarkPrices, saveBenchmarkPrices } from './storage.js';
+import { getBenchmarkPrices, saveBenchmarkPrices, getForwardBenchmarks, saveForwardBenchmarks } from './storage.js';
 import { calculatePortfolio } from './domain.js';
 import { compareBenchmark, readBenchmarkPrices } from './benchmark.js';
 import { checkFinnhubHistory, refreshAllQuotes, searchStock, TICKER_PATTERN } from './api.js';
@@ -431,6 +431,14 @@ const trackingTime = new Intl.DateTimeFormat('ko-KR', {
   timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short'
 });
 
+function hasTrackingGap(from, to) {
+  const next = new Date(from + 'T00:00:00Z');
+  do {
+    next.setUTCDate(next.getUTCDate() + 1);
+  } while (next.getUTCDay() === 0 || next.getUTCDay() === 6);
+  return next.toISOString().slice(0, 10) < to;
+}
+
 function drawTrackingChart(history) {
   const chart = field('track-chart');
   chart.replaceChildren();
@@ -453,12 +461,14 @@ function drawTrackingChart(history) {
   }
   for (const [key, color] of [['actualReturn', colors[0]], ['comparisonReturn', colors[1]]]) {
     let drawing = false;
-    const path = history.map(point => {
+    const path = history.map((point, index) => {
       if (!Number.isFinite(point[key])) {
         drawing = false;
         return '';
       }
-      const part = (drawing ? 'L' : 'M') + x(point) + ' ' + y(point[key]);
+      const connected = drawing && !hasTrackingGap(history[index - 1].day, point.day);
+      add('circle', { cx: x(point), cy: y(point[key]), r: 2, fill: color });
+      const part = (connected ? 'L' : 'M') + x(point) + ' ' + y(point[key]);
       drawing = true;
       return part;
     }).join(' ');
@@ -476,15 +486,93 @@ function initTracking(getAccount, getSettings, onQuotes) {
   const attempted = new Set();
   let busy = false;
   let activeAccount;
-  const key = id => 'hanriver.forward-benchmarks.' + id;
-  const read = id => JSON.parse(localStorage.getItem(key(id)) || '[]');
+  const rows = field('track-rows');
+  const addButton = field('track-add');
+  const read = getForwardBenchmarks;
+  function updateTotal() {
+    const total = [...rows.querySelectorAll('input[type=number]')]
+      .reduce((sum, input) => sum + (input.valueAsNumber || 0), 0);
+    const remaining = Math.round((100 - total) * 1e8) / 1e8;
+    field('track-total').textContent = (100 - remaining).toFixed(2).replace(/\.?0+$/, '') + '% 합계' +
+      (remaining > 0 ? ' · ' + remaining + '% 남음' : remaining < 0 ? ' · ' + -remaining + '% 초과' : '');
+    addButton.disabled = busy || rows.children.length >= 20;
+  }
+
+  function addRow(ticker = '', weight = '') {
+    const row = make('div');
+    row.className = 'benchmark-track-row';
+    const symbol = make('input');
+    symbol.className = 'form-input';
+    symbol.placeholder = '티커 또는 종목명';
+    symbol.setAttribute('aria-label', '티커 또는 종목명');
+    symbol.autocomplete = 'off';
+    symbol.required = true;
+    symbol.value = ticker;
+    const share = make('input');
+    share.className = 'form-input';
+    share.type = 'number';
+    share.min = '0.00000001';
+    share.max = '100';
+    share.step = 'any';
+    share.placeholder = '비중 %';
+    share.setAttribute('aria-label', '비중 (%)');
+    share.required = true;
+    share.value = weight;
+    const remove = make('button', '빼기');
+    remove.type = 'button';
+    remove.className = 'btn-secondary';
+    const matches = make('div');
+    matches.className = 'benchmark-controls benchmark-track-matches';
+    let timer;
+    let version = 0;
+    symbol.oninput = () => {
+      const query = symbol.value.trim();
+      const request = ++version;
+      clearTimeout(timer);
+      matches.replaceChildren();
+      if (!query) return;
+      timer = setTimeout(async () => {
+        const found = query.toUpperCase() === 'CASH' ? [{ ticker: 'CASH', name: '현금' }] :
+          (await searchStock(query, 4).catch(() => ({ matches: [] }))).matches;
+        if (request !== version || !row.isConnected) return;
+        matches.replaceChildren(...found.map(stock => {
+          const choice = make('button', stock.ticker + ' · ' + stock.name);
+          choice.type = 'button';
+          choice.className = 'btn-secondary';
+          choice.onclick = () => {
+            symbol.value = stock.ticker;
+            matches.replaceChildren();
+            share.focus();
+          };
+          return choice;
+        }));
+      }, 180);
+    };
+    share.oninput = updateTotal;
+    remove.onclick = () => {
+      row.remove();
+      if (!rows.children.length) addRow().focus();
+      else addButton.focus();
+      updateTotal();
+    };
+    row.append(symbol, share, remove, matches);
+    rows.append(row);
+    updateTotal();
+    return symbol;
+  }
+
+  function resetRows(ticker = '', weight = '') {
+    rows.replaceChildren();
+    addRow(ticker, weight);
+  }
+  addButton.onclick = () => addRow().focus();
   const current = (id, comparisons) => comparisons.find(item => item.id === picked.get(id));
 
   function render() {
     const { id, name } = getAccount();
     if (id !== activeAccount) {
       status.textContent = '';
-      form.reset();
+      resetRows();
       activeAccount = id;
     }
     let comparisons;
@@ -504,6 +592,7 @@ function initTracking(getAccount, getSettings, onQuotes) {
     select.disabled = busy;
     field('track-start').disabled = busy;
     field('track-refresh').disabled = busy;
+    updateTotal();
     if (!item) return;
 
     const start = item.history[0], latest = item.history.at(-1);
@@ -521,12 +610,18 @@ function initTracking(getAccount, getSettings, onQuotes) {
       row.append(title, make('dd', percent(gain) + ' · ' + currency.format(nav)));
       return row;
     }));
+    const today = trackingDate.format(new Date());
+    field('track-gap').textContent = hasTrackingGap(latest.day, today)
+      ? '마지막 기록 이후 기록이 없는 평일이 있어요. 시세를 갱신해 최신 값을 저장하세요.'
+      : item.history.some((point, index) => index && hasTrackingGap(item.history[index - 1].day, point.day))
+        ? '그래프가 끊긴 구간은 기록이 없는 기간이에요.' : '';
     drawTrackingChart(item.history);
 
     const attempt = id + '/' + item.id + '/' + trackingDate.format(new Date());
     if (!busy && !attempted.has(attempt)) {
       attempted.add(attempt);
-      if (latest.day !== trackingDate.format(new Date())) void record();
+      const weekday = new Date(today + 'T00:00:00Z').getUTCDay();
+      if (latest.day !== today && weekday !== 0 && weekday !== 6) void record();
     }
   }
 
@@ -578,16 +673,17 @@ function initTracking(getAccount, getSettings, onQuotes) {
           history: [{ at, day, actualNav: actual.totalNav, comparisonNav: actual.totalNav,
             principal: actual.netPrincipal, actualReturn: 0, comparisonReturn: 0 }]
         };
-        localStorage.setItem(key(id), JSON.stringify([...read(id), created]));
+        saveForwardBenchmarks(id, [...read(id), created]);
         picked.set(id, created.id);
-        form.reset();
+        resetRows();
         status.textContent = '같은 금액으로 비교를 시작했어요.';
       } else {
         const latest = item.history.at(-1);
         const comparisonNav = allocation.reduce((total, row) =>
           total + row.units * (row.ticker === 'CASH' ? 1 : quotes[row.ticker].price), 0);
         const principal = actual.netPrincipal, actualNav = actual.totalNav;
-        if (actualNav === latest.actualNav && comparisonNav === latest.comparisonNav && principal === latest.principal) {
+        if (latest.day === day && actualNav === latest.actualNav &&
+            comparisonNav === latest.comparisonNav && principal === latest.principal) {
           status.textContent = '마지막 기록 이후 평가금액이 같아요.';
         } else {
           const history = [...item.history];
@@ -599,8 +695,8 @@ function initTracking(getAccount, getSettings, onQuotes) {
             ? ((1 + previous.actualReturn / 100) * adjusted / previous.actualNav - 1) * 100 : null;
           const comparisonReturn = (comparisonNav / history[0].comparisonNav - 1) * 100;
           history.push({ at, day, actualNav, comparisonNav, principal, actualReturn, comparisonReturn });
-          localStorage.setItem(key(id), JSON.stringify(read(id).map(saved =>
-            saved.id === item.id ? { ...saved, history } : saved)));
+          saveForwardBenchmarks(id, read(id).map(saved =>
+            saved.id === item.id ? { ...saved, history } : saved));
           status.textContent = '최신 평가금액을 기록했어요.';
         }
       }
@@ -615,7 +711,7 @@ function initTracking(getAccount, getSettings, onQuotes) {
   }
 
   for (const button of form.querySelectorAll('[data-track-preset]')) {
-    button.onclick = () => { field('track-weights').value = button.dataset.trackPreset + ' 100'; };
+    button.onclick = () => resetRows(button.dataset.trackPreset, 100);
   }
   select.onchange = () => {
     picked.set(getAccount().id, select.value);
@@ -625,7 +721,8 @@ function initTracking(getAccount, getSettings, onQuotes) {
   form.onsubmit = event => {
     event.preventDefault();
     try {
-      const weights = parseWeights(field('track-weights').value);
+      const weights = parseWeights([...rows.children].map(row =>
+        row.children[0].value.trim() + ' ' + row.children[1].value).join(', '));
       if (weights.length > 20) throw new Error('비교 종목은 20개까지 넣을 수 있어요.');
       void record(weights);
     } catch (error) {

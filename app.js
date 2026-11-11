@@ -145,7 +145,7 @@ async function refreshState() {
 function rememberView() {
   try {
     sessionStorage.setItem('hanriver.current-view', JSON.stringify({
-      view: state.currentView, watchOnly: state.watchOnly
+      view: state.currentView, watchOnly: state.watchOnly, accountId: state.accountId
     }));
   } catch { /* Navigation still works without storage. */ }
 }
@@ -1688,6 +1688,7 @@ function initEvents() {
 
   document.getElementById('account-select').addEventListener('change', async (event) => {
     state.accountId = event.target.value;
+    rememberView();
     await refreshState();
   });
 
@@ -2160,6 +2161,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('view-' + saved.view)?.classList.contains('view-section')) {
     state.watchOnly = saved.view === 'stocks' && saved.watchOnly === true;
     state.currentView = saved.view;
+  }
+  if ([...document.getElementById('account-select').options].some(option => option.value === saved?.accountId)) {
+    state.accountId = saved.accountId;
   }
   switchView(state.currentView, false);
   await refreshState();
