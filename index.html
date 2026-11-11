@@ -122,9 +122,10 @@
               </div>
               <div class="goal-stats">
                 <span id="goal-progress-text" class="tabular" style="font-weight: 700; color: var(--accent-emerald);">0.0%</span>
-                <span class="muted" style="font-size: 12px;" id="goal-target-desc">(목표: $20,000 / +25.0%)</span>
+                <span class="muted" style="font-size: 12px;" id="goal-target-desc"></span>
               </div>
             </div>
+            <p id="goal-return-status" class="muted"></p>
             <div class="progress-track">
               <div class="progress-fill" id="goal-progress-bar" style="width: 0%;"></div>
             </div>
@@ -181,7 +182,10 @@
           <div class="charts-grid">
             <div class="card">
               <h3 class="card-title">자산 추이</h3>
-              <p class="muted">과거 일별 계좌 평가액이 없어 자산 추이와 최대 낙폭(MDD)을 계산할 수 없습니다.</p>
+              <p class="muted" id="asset-history-status"></p>
+              <div id="asset-history-plot" hidden>
+                <canvas id="chart-asset-history" role="img" aria-label="기록된 계좌 평가액 추이"></canvas>
+              </div>
             </div>
 
             <div class="card">
@@ -589,7 +593,7 @@
                 <h3 class="card-title">미국 상장 종목 시가총액 순위</h3>
                 <p id="market-cap-status" class="muted" role="status"></p>
               </div>
-              <button type="button" id="market-cap-refresh" class="btn-secondary">순위 갱신</button>
+              <button type="button" id="market-cap-refresh" class="btn-secondary">최신 순위 확인</button>
             </div>
             <div class="table-container">
               <table class="market-cap-table">

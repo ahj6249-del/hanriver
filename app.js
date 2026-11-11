@@ -24,6 +24,7 @@ import {
   saveJournalNote,
   deleteJournalNote,
   getSettings,
+  getForwardBenchmarks,
   saveSettings,
   getSampleData,
   isLegacySample,
@@ -220,8 +221,8 @@ async function renderMarketCap(refresh = false) {
     }).join('');
   };
 
-  if (marketCapSnapshot) draw(marketCapSnapshot);
-  else status.textContent = '시가총액 순위를 불러오는 중…';
+  if (marketCapSnapshot && !marketCapRequest) draw(marketCapSnapshot);
+  else if (!marketCapSnapshot) status.textContent = '시가총액 순위를 불러오는 중…';
   if (marketCapRequest || (marketCapSnapshot && !refresh)) return;
   button.disabled = true;
   const request = async url => {
@@ -242,6 +243,7 @@ async function renderMarketCap(refresh = false) {
         status.textContent = '시가총액 순위를 불러오지 못했습니다.';
       }
     }
+    const previous = marketCapSnapshot;
     try {
       const fresh = await request('https://raw.githubusercontent.com/ahj6249-del/hanriver/main/market-cap-top100.json');
       if (!marketCapSnapshot || fresh.asOf > marketCapSnapshot.asOf ||
@@ -249,8 +251,16 @@ async function renderMarketCap(refresh = false) {
         marketCapSnapshot = fresh;
       }
       draw(marketCapSnapshot);
+      if (refresh && previous) {
+        const changed = previous.asOf !== marketCapSnapshot.asOf ||
+          JSON.stringify(previous.rows) !== JSON.stringify(marketCapSnapshot.rows);
+        status.textContent += changed ? ' · 최신 공개 자료 반영' : ' · 새로 공개된 자료 없음';
+      }
     } catch {
-      if (marketCapSnapshot) status.textContent += ' · 저장된 순위';
+      if (marketCapSnapshot) {
+        draw(marketCapSnapshot);
+        status.textContent += refresh ? ' · 최신 자료 확인 실패, 저장된 순위 표시 중' : ' · 저장된 순위';
+      }
     }
   })();
   try {
@@ -321,6 +331,10 @@ function renderDashboard() {
   if (progressText) progressText.textContent = `${(currentProfit / targetUSD * 100).toFixed(1)}% 달성 (${fmtMoney(currentProfit, true)})`;
   if (progressBar) progressBar.style.width = `${goalPercent}%`;
   if (targetDesc) targetDesc.textContent = `(목표: ${fmtMoney(targetUSD)})`;
+  const targetRate = state.settings.targetReturnPercent ?? 25;
+  const realizedRate = p.netPrincipal > 0 ? currentProfit / p.netPrincipal * 100 : null;
+  document.getElementById('goal-return-status').textContent =
+    `올해 실현 수익률 ${realizedRate === null ? '—' : formatPercent(realizedRate, true)} / 목표 ${formatPercent(targetRate, true)} · 현재 순입금 기준`;
 
   // 메트릭 카드들
   const setEl = (id, val, cls) => {
@@ -371,6 +385,7 @@ function renderDashboard() {
   setEl('m-payoff-ratio', `손익비 ${formatRatio(perf.payoffRatio)}`);
 
   // 차트 그리기
+  drawAssetHistory();
   drawAllocationDonut();
   drawMonthlyBarChart();
 }
@@ -1179,6 +1194,80 @@ function drawAllocationDonut() {
   `).join('') + liabilities.map(item => `
     <div class="allocation-offset"><span>${escapeHTML(item.label)}</span><strong>${fmtMoney(item.value)}</strong></div>
   `).join('');
+}
+
+function drawAssetHistory() {
+  const status = document.getElementById('asset-history-status');
+  const plot = document.getElementById('asset-history-plot');
+  let comparisons;
+  try {
+    comparisons = getForwardBenchmarks(state.accountId);
+  } catch {
+    plot.hidden = true;
+    status.textContent = '저장된 계좌 평가액을 읽지 못했어요.';
+    return;
+  }
+
+  const byDay = new Map();
+  for (const comparison of comparisons) {
+    for (const point of comparison.history) {
+      const time = Date.parse(point.at);
+      if (!Number.isFinite(time) || !Number.isFinite(point.actualNav)) continue;
+      const previous = byDay.get(point.day);
+      if (!previous || time > previous.time) byDay.set(point.day, { ...point, time });
+    }
+  }
+  const points = [...byDay.values()].sort((a, b) => a.time - b.time);
+  plot.hidden = points.length < 2;
+  if (!points.length) {
+    status.textContent = '벤치마크에서 오늘부터 비교를 시작하면 계좌 평가액이 여기에 쌓여요.';
+    return;
+  }
+  const first = points[0], last = points.at(-1);
+  status.textContent = points.length === 1
+    ? `첫 기록 ${fmtMoney(last.actualNav)} · 미국 기준 ${last.day} · 다른 날짜의 기록이 추가되면 그래프가 표시돼요.`
+    : `최근 기록 ${fmtMoney(last.actualNav)} · 미국 기준 ${last.day} · 기록 ${points.length}일`;
+  if (plot.hidden || !plot.clientWidth) return;
+
+  const canvas = document.getElementById('chart-asset-history');
+  const width = plot.clientWidth, height = 180, ratio = window.devicePixelRatio || 1;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(ratio, ratio);
+  const values = points.map(point => point.actualNav);
+  const floor = Math.min(...values), ceiling = Math.max(...values);
+  const padding = (ceiling - floor) * .1 || Math.max(1, Math.abs(ceiling) * .01);
+  const minimum = floor - padding, maximum = ceiling + padding;
+  const left = 80, right = width - 12, top = 14, bottom = height - 24;
+  const x = point => left + (right - left) * (point.time - first.time) / (last.time - first.time || 1);
+  const y = value => bottom - (bottom - top) * (value - minimum) / (maximum - minimum);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = getComputedStyle(canvas).getPropertyValue('--text-secondary');
+  ctx.textAlign = 'right';
+  ctx.strokeStyle = '#64748b';
+  for (const value of [maximum, (maximum + minimum) / 2, minimum]) {
+    const line = y(value);
+    ctx.fillText(fmtMoney(value), left - 5, line + 4, left - 8);
+    ctx.beginPath();
+    ctx.moveTo(left, line);
+    ctx.lineTo(right, line);
+    ctx.stroke();
+  }
+  ctx.textAlign = 'left';
+  ctx.fillText(first.day, left, height - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText(last.day, right, height - 4);
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index) ctx.lineTo(x(point), y(point.actualNav));
+    else ctx.moveTo(x(point), y(point.actualNav));
+  });
+  ctx.stroke();
 }
 
 function drawMonthlyBarChart() {
@@ -2141,6 +2230,7 @@ function initEvents() {
   // 윈도우 리사이즈 시 차트 다시 그리기
   window.addEventListener('resize', () => {
     if (state.currentView === 'dashboard') {
+      drawAssetHistory();
       drawAllocationDonut();
       drawMonthlyBarChart();
     } else if (state.currentView === 'performance') {
