@@ -1144,8 +1144,7 @@ dialog::backdrop {
 
 .allocation-offset { display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); }
 
-.stock-view-actions, #watchlist-layout { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.stock-view-actions { justify-content: space-between; margin-block: 8px; }
+#watchlist-layout { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-block: 8px; }
 #watchlist-layout[hidden] { display: none; }
 #watchlist-layout button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
 .stock-search-results.stock-results-list { grid-template-columns: minmax(0, 1fr); gap: 2px; }

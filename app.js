@@ -820,13 +820,6 @@ let stockSearchVersion = 0;
 let visibleStockTickers = [];
 let refreshingQuotes = false;
 
-function updateQuoteButtons() {
-  const button = document.getElementById('btn-stock-refresh-all');
-  button.disabled = refreshingQuotes || visibleStockTickers.length === 0;
-  button.textContent = refreshingQuotes ? '조회 중…' : '전체 시세 조회';
-  document.getElementById('btn-header-refresh').disabled = refreshingQuotes;
-}
-
 async function renderStocks() {
   const container = document.getElementById('stock-search-results');
   const status = document.getElementById('stock-search-status');
@@ -844,7 +837,6 @@ async function renderStocks() {
   document.getElementById('watch-layout-card').setAttribute('aria-pressed', String(!listLayout));
   document.getElementById('watch-layout-list').setAttribute('aria-pressed', String(listLayout));
   visibleStockTickers = [];
-  updateQuoteButtons();
   for (const button of document.querySelectorAll('.mobile-nav [data-view="stocks"]')) {
     const active = (button.dataset.stockMode === 'watch') === watchOnly;
     button.classList.toggle('active', active);
@@ -869,7 +861,6 @@ async function renderStocks() {
     !matches.length ? '상장 목록에서 일치하는 종목을 찾지 못했습니다.' : '';
 
   visibleStockTickers = [...new Set(results.map(stock => stock.ticker))];
-  updateQuoteButtons();
   container.innerHTML = results.map(stock => {
     const ticker = escapeHTML(stock.ticker);
     const quote = state.prices[stock.ticker];
@@ -1878,9 +1869,10 @@ function initEvents() {
       return;
     }
 
+    const refreshButton = document.getElementById('btn-header-refresh');
     const spinIcon = document.getElementById('refresh-spin-icon');
     refreshingQuotes = true;
-    updateQuoteButtons();
+    refreshButton.disabled = true;
     spinIcon.style.animation = 'spin 1s infinite linear';
     try {
       const quotes = await refreshAllQuotes(tickers, state.settings);
@@ -1889,13 +1881,12 @@ function initEvents() {
       showToast(`시세 조회 ${refreshed}/${tickers.length}개 갱신`);
     } finally {
       refreshingQuotes = false;
-      updateQuoteButtons();
+      refreshButton.disabled = false;
       spinIcon.style.animation = 'none';
     }
   }
 
   document.getElementById('btn-header-refresh').addEventListener('click', refreshVisibleQuotes);
-  document.getElementById('btn-stock-refresh-all').addEventListener('click', refreshVisibleQuotes);
   for (const layout of ['card', 'list']) {
     document.getElementById('watch-layout-' + layout).addEventListener('click', () => {
       const settings = { ...getSettings(), watchlistLayout: layout };

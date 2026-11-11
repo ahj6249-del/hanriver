@@ -420,12 +420,9 @@
               <input type="search" id="stock-search-input" aria-label="미국 주식·ETF 검색" class="form-input" placeholder="티커 또는 회사명 (예: VOO, Costco, 브로드컴)" autocomplete="off">
               <button class="btn-primary" type="submit">검색</button>
             </form>
-            <div class="stock-view-actions">
-              <button type="button" class="btn-primary" id="btn-stock-refresh-all" disabled>전체 시세 조회</button>
-              <div id="watchlist-layout" role="group" aria-label="관심종목 보기 방식" hidden>
-                <button type="button" class="btn-secondary" id="watch-layout-card" aria-pressed="true">카드</button>
-                <button type="button" class="btn-secondary" id="watch-layout-list" aria-pressed="false">목록</button>
-              </div>
+            <div id="watchlist-layout" role="group" aria-label="관심종목 보기 방식" hidden>
+              <button type="button" class="btn-secondary" id="watch-layout-card" aria-pressed="true">카드</button>
+              <button type="button" class="btn-secondary" id="watch-layout-list" aria-pressed="false">목록</button>
             </div>
             <p id="stock-search-status" class="muted" role="status"></p>
           </div>
