@@ -1659,7 +1659,9 @@ function openJournalModal(trade, existingNote) {
   document.getElementById('journal-ticker').readOnly = Boolean(trade);
   document.getElementById('modal-journal-title').textContent = note ? '복기 노트 수정' : '복기 노트 작성';
   document.getElementById('journal-trade-context').textContent = trade ? tradeSummary(trade) : '';
+  document.getElementById('journal-extra').open = false;
   modal.showModal();
+  modal.querySelector('.journal-editor').scrollTop = 0;
 }
 
 /**

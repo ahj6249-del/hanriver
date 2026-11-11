@@ -837,78 +837,81 @@
   </dialog>
 
   <!-- 모달: 복기 노트 다이얼로그 -->
-  <dialog id="modal-journal" class="custom-modal">
+  <dialog id="modal-journal" class="custom-modal" aria-labelledby="modal-journal-title">
     <form id="form-journal" method="dialog">
       <div class="modal-header">
-        <h3 id="modal-journal-title">투자 복기 노트 작성</h3>
-        <button type="button" class="btn-close" id="btn-close-journal-modal">&times;</button>
+        <h3 id="modal-journal-title">복기 노트 작성</h3>
+        <button type="button" class="btn-close" id="btn-close-journal-modal" aria-label="복기 입력 닫기">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body journal-editor">
         <input type="hidden" id="journal-id">
         <input type="hidden" id="journal-transaction-id">
         <p id="journal-trade-context" class="journal-trade-context"></p>
-        <div class="form-row">
+        <div class="journal-editor-meta">
           <div class="form-group">
-            <label for="journal-date">날짜 *</label>
+            <label for="journal-ticker">종목</label>
+            <input type="text" id="journal-ticker" class="form-input" placeholder="예: TSLA"
+              autocapitalize="characters" autocomplete="off" spellcheck="false" required>
+          </div>
+          <div class="form-group">
+            <label for="journal-date">날짜</label>
             <input type="date" id="journal-date" class="form-input" required>
           </div>
-          <div class="form-group">
-            <label>종목 티커 *</label>
-            <input type="text" id="journal-ticker" class="form-input" placeholder="예: TSLA" style="text-transform: uppercase;" required>
+        </div>
+
+        <div class="form-group journal-editor-main">
+          <label for="journal-idea">이번 매매에서 기억할 점</label>
+          <textarea id="journal-idea" class="form-textarea" rows="3" placeholder="어떤 판단을 했고, 결과는 어땠나요?"></textarea>
+        </div>
+
+        <div class="form-group journal-editor-main">
+          <label for="journal-improvements">다음 매매에서 할 일</label>
+          <textarea id="journal-improvements" class="form-textarea" rows="2" placeholder="예: 주문 전에 손절가부터 정하기"></textarea>
+        </div>
+
+        <details id="journal-extra">
+          <summary><strong>상세 기록</strong><span>선택</span></summary>
+          <div class="journal-extra-fields">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="journal-buy-reason">매수 이유</label>
+                <input type="text" id="journal-buy-reason" class="form-input" placeholder="예: 지지선 확인">
+              </div>
+              <div class="form-group">
+                <label for="journal-sell-reason">매도 이유</label>
+                <input type="text" id="journal-sell-reason" class="form-input" placeholder="예: 목표가 도달">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="journal-confidence">진입 확신도</label>
+                <select id="journal-confidence" class="form-select">
+                  <option value="5">5 · 매우 높음</option>
+                  <option value="4">4 · 높음</option>
+                  <option value="3" selected>3 · 보통</option>
+                  <option value="2">2 · 낮음</option>
+                  <option value="1">1 · 매우 낮음</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="journal-emotion">당시 감정</label>
+                <input type="text" id="journal-emotion" class="form-input" placeholder="예: 차분함">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="journal-pros">잘한 점</label>
+              <input type="text" id="journal-pros" class="form-input" placeholder="예: 정해둔 수량으로 진입">
+            </div>
+            <div class="form-group">
+              <label for="journal-tags">태그</label>
+              <input type="text" id="journal-tags" class="form-input" placeholder="예: 실적 발표, 분할 매수">
+            </div>
           </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>매수 이유</label>
-            <input type="text" id="journal-buy-reason" class="form-input" placeholder="진입 당시 근거">
-          </div>
-          <div class="form-group">
-            <label for="journal-sell-reason">매도 이유</label>
-            <input type="text" id="journal-sell-reason" class="form-input" placeholder="청산 당시 근거">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>투자 아이디어 & 가설</label>
-          <textarea id="journal-idea" class="form-textarea" rows="2" placeholder="어떤 시나리오를 보고 진입했는가?"></textarea>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>진입 확신도 (1~5점)</label>
-            <select id="journal-confidence" class="form-select">
-              <option value="5">⭐⭐⭐⭐⭐ 5점 (원칙 일치, 높은 확신)</option>
-              <option value="4">⭐⭐⭐⭐ 4점 (비교적 확신)</option>
-              <option value="3" selected>⭐⭐⭐ 3점 (보통)</option>
-              <option value="2">⭐⭐ 2점 (충동 우려)</option>
-              <option value="1">⭐ 1점 (뇌동 매매)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>당시 투자 심리</label>
-            <input type="text" id="journal-emotion" class="form-input" placeholder="예: 차분함, 조급함, FOMO, 공포">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>잘한 점 (칭찬)</label>
-          <input type="text" id="journal-pros" class="form-input" placeholder="원칙 준수, 손절선 철저">
-        </div>
-
-        <div class="form-group">
-          <label>아쉬운 점 & 다음에 개선할 점</label>
-          <textarea id="journal-improvements" class="form-textarea" rows="2" placeholder="다음 매매에서 절대 반복하지 말아야 할 점"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>태그 (쉼표로 구분)</label>
-          <input type="text" id="journal-tags" class="form-input" placeholder="실적 발표, AI 테마, 기술적 분석, 계획된 손절">
-        </div>
+        </details>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" id="btn-cancel-journal">취소</button>
-        <button type="submit" class="btn-primary" id="btn-save-journal">저장하기</button>
+        <button type="submit" class="btn-primary" id="btn-save-journal">복기 저장</button>
       </div>
     </form>
   </dialog>
