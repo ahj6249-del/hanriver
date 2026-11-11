@@ -1135,3 +1135,9 @@ dialog::backdrop {
 @media (max-width: 860px) {
   #toast { bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 10px); left: 12px; right: 12px; justify-content: space-between; padding: 8px 12px; }
 }
+
+.watch-chart { margin-bottom: 24px; }
+.watch-chart-frame { height: 520px; border-radius: var(--radius-sm); overflow: hidden; }
+.watch-chart-symbols { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.watch-chart-symbols:empty { display: none; }
+.watch-chart-symbols button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }

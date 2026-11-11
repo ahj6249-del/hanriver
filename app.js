@@ -179,12 +179,6 @@ function switchView(viewName) {
   const titleEl = document.getElementById('current-page-title');
   if (titleEl) titleEl.textContent = titles[viewName] || '한강아니면 한강뷰';
 
-  if (viewName === 'stocks') {
-    const activeChip = document.querySelector('#tv-symbol-chips .btn-tv-chip.active');
-    const sym = activeChip ? activeChip.dataset.symbol : 'NASDAQ:NVDA';
-    loadTradingViewChart('tradingview-main-container', sym);
-  }
-
   renderCurrentView();
 }
 
@@ -826,7 +820,7 @@ async function renderStocks() {
   const version = ++stockSearchVersion;
   if (query && !watchOnly) status.textContent = '종목 검색 중…';
   const { matches, directoryAvailable } = query && !watchOnly ? await searchStock(query) :
-    { matches: STOCK_DATABASE.slice(0, 6), directoryAvailable: true };
+    { matches: [], directoryAvailable: true };
   if (version !== stockSearchVersion || query !== document.getElementById('stock-search-input').value.trim()) return;
 
   const manualTicker = query.toUpperCase();
@@ -834,7 +828,7 @@ async function renderStocks() {
     stock.ticker.replaceAll('.', '-') === manualTicker);
   const results = watchOnly ? watchlist : canUseTicker ? [...matches, { ticker: manualTicker, name: '티커 직접 입력' }] : matches;
   status.textContent = watchOnly ? (watchlist.length ? '' : '검색 결과에서 별표를 눌러 관심종목을 추가할 수 있습니다.') : !directoryAvailable ? '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.' :
-    !query ? '티커나 회사명을 입력하면 다른 종목도 찾을 수 있습니다.' :
+    !query ? '티커나 회사명을 입력해 종목을 검색하세요.' :
     !matches.length ? '상장 목록에서 일치하는 종목을 찾지 못했습니다.' : '';
 
   container.innerHTML = results.map(stock => {
@@ -859,6 +853,8 @@ async function renderStocks() {
         </div>
       </article>`;
   }).join('');
+
+  renderWatchlistChart(watchlist);
 
   for (const button of container.querySelectorAll('.watch-toggle')) {
     button.onclick = async () => {
@@ -1428,6 +1424,43 @@ export function loadTradingViewChart(containerId, rawSymbol = 'NASDAQ:NVDA') {
   container.appendChild(iframe);
 }
 
+let chartTicker = '';
+
+function renderWatchlistChart(watchlist) {
+  const chart = document.getElementById('tradingview-main-container');
+  const chips = document.getElementById('tv-symbol-chips');
+  const empty = document.getElementById('tv-watch-empty');
+  const nextTicker = watchlist.some(stock => stock.ticker === chartTicker) ?
+    chartTicker : (watchlist[0]?.ticker || '');
+  if (nextTicker !== chartTicker) {
+    chartTicker = nextTicker;
+    if (chartTicker) loadTradingViewChart(chart.id, chartTicker);
+    else chart.replaceChildren();
+  }
+  chart.hidden = !chartTicker;
+  empty.hidden = Boolean(chartTicker);
+  chips.replaceChildren();
+  document.getElementById('tv-main-title').textContent = chartTicker ?
+    `TradingView 캔들차트 · ${chartTicker}` : 'TradingView 캔들차트';
+  for (const { ticker } of watchlist) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn-secondary btn-tv-chip';
+    button.textContent = ticker;
+    button.setAttribute('aria-pressed', String(ticker === chartTicker));
+    button.addEventListener('click', () => {
+      if (ticker === chartTicker) return;
+      loadTradingViewChart(chart.id, ticker);
+      chartTicker = ticker;
+      document.getElementById('tv-main-title').textContent = `TradingView 캔들차트 · ${ticker}`;
+      for (const chip of chips.querySelectorAll('button')) {
+        chip.setAttribute('aria-pressed', String(chip === button));
+      }
+    });
+    chips.append(button);
+  }
+}
+
 function openTradingViewModal(ticker) {
   const modal = document.getElementById('modal-tradingview');
   if (!modal) return;
@@ -1814,19 +1847,6 @@ function initEvents() {
   });
   document.getElementById('stock-search-input').addEventListener('input', event => {
     if (!event.target.value.trim()) renderStocks();
-  });
-
-  // TradingView 심볼 칩 클릭 이벤트
-  document.querySelectorAll('#tv-symbol-chips .btn-tv-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#tv-symbol-chips .btn-tv-chip').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const sym = btn.dataset.symbol;
-      const cleanTicker = sym.split(':')[1] || sym;
-      const titleEl = document.getElementById('tv-main-title');
-      if (titleEl) titleEl.textContent = `📈 TradingView 실시간 캔들 차트 (${cleanTicker})`;
-      loadTradingViewChart('tradingview-main-container', sym);
-    });
   });
 
   // TradingView 모달 닫기

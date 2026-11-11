@@ -419,26 +419,11 @@
           </div>
           <div id="stock-search-results" class="metrics-grid stock-search-results"></div>
 
-          <!-- TradingView 실시간 캔들 차트 섹션 -->
-          <div class="card" style="margin-bottom: 24px;">
-            <div class="chart-header" style="flex-wrap: wrap; gap: 12px;">
-              <div>
-                <h3 class="card-title" id="tv-main-title" style="font-size: 16px;">📈 TradingView 실시간 캔들 차트 (NVDA)</h3>
-                <p class="muted" style="font-size: 12px;">실시간 캔들, 거래량, 이동평균선 및 보조지표</p>
-              </div>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="tv-symbol-chips">
-                <button class="btn-secondary btn-tv-chip active" data-symbol="NASDAQ:NVDA">NVDA</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:AAPL">AAPL</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:TSLA">TSLA</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="AMEX:SPY">SPY</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:QQQ">QQQ</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="NYSE:PLTR">PLTR</button>
-                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:MSFT">MSFT</button>
-              </div>
-            </div>
-            <div id="tradingview-main-container" style="height: 520px; width: 100%; border-radius: 8px; overflow: hidden; background: #07090e; margin-top: 10px;">
-              <!-- TradingView iframe / widget 동적 주입 -->
-            </div>
+          <div class="card watch-chart">
+            <h3 class="card-title" id="tv-main-title">TradingView 캔들차트</h3>
+            <p class="muted" id="tv-watch-empty">관심종목을 추가하면 이곳에서 차트를 볼 수 있어요.</p>
+            <div id="tradingview-main-container" class="watch-chart-frame" hidden></div>
+            <div id="tv-symbol-chips" class="watch-chart-symbols" role="group" aria-label="관심종목 차트 선택"></div>
           </div>
 
         </section>
