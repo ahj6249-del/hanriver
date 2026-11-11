@@ -1,3 +1,4 @@
+import { initBenchmark } from './benchmark-view.js';
 /**
  * 한강아니면 한강뷰 (Hanriver) - Main Application Controller
  * UI 라우팅, 상태 관리, 캔버스 차트 렌더링, 거래/복기 인터랙션
@@ -177,6 +178,7 @@ function switchView(viewName) {
     journal: '투자 복기 노트',
     stocks: '종목 검색 & 시세',
     'market-cap': '시가총액 TOP 100',
+    benchmark: '벤치마크',
     settings: '설정'
   };
   const titleEl = document.getElementById('current-page-title');
@@ -268,6 +270,9 @@ function renderCurrentView() {
       break;
     case 'stocks':
       renderStocks();
+      break;
+    case 'benchmark':
+      renderBenchmark();
       break;
     case 'market-cap':
       renderMarketCap();
@@ -951,7 +956,8 @@ async function renderStocks() {
       </article>`;
   }).join('');
 
-  renderWatchlistChart(watchlist);
+  document.getElementById('stock-watch-chart').hidden = watchOnly;
+  if (!watchOnly) renderWatchlistChart(watchlist);
 
   for (const button of container.querySelectorAll('.watch-toggle')) {
     button.onclick = async () => {
@@ -1575,7 +1581,10 @@ function introducesInvalidClose(transactions) {
   return calculatePortfolio(transactions).invalidCloseIds.some(id => !invalid.has(id));
 }
 
+let renderBenchmark;
+
 function initEvents() {
+  renderBenchmark = initBenchmark(() => state.transactions);
   // 네비게이션 탭 클릭
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {

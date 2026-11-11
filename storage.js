@@ -297,3 +297,25 @@ export async function importAllData(jsonData) {
     saveSettings({ ...getSettings(), ...settings });
   }
 }
+
+
+export async function getBenchmarkPrices() {
+  const db = await initDB();
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('settings').objectStore('settings').get('benchmark-prices');
+    request.onsuccess = () => resolve(request.result?.value ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveBenchmarkPrices(prices) {
+  const db = await initDB();
+  if (!db) throw new Error('IndexedDB unavailable');
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('settings', 'readwrite');
+    transaction.objectStore('settings').put({ key: 'benchmark-prices', value: prices });
+    transaction.oncomplete = resolve;
+    transaction.onabort = () => reject(transaction.error);
+  });
+}

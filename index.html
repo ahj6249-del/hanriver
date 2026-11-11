@@ -67,6 +67,7 @@
         <button class="nav-item" data-view="stocks">
           <span class="icon">🔍</span> 종목 검색 & 시세
         </button>
+        <button class="nav-item" data-view="benchmark">벤치마크</button>
         <button class="nav-item" data-view="market-cap">시가총액 TOP 100</button>
         <button class="nav-item" data-view="settings">
           <span class="icon">⚙️</span> 설정
@@ -428,13 +429,99 @@
           </div>
           <div id="stock-search-results" class="metrics-grid stock-search-results"></div>
 
-          <div class="card watch-chart">
+          <div class="card watch-chart" id="stock-watch-chart">
             <h3 class="card-title" id="tv-main-title">TradingView 캔들차트</h3>
             <p class="muted" id="tv-watch-empty">관심종목을 추가하면 이곳에서 차트를 볼 수 있어요.</p>
             <div id="tradingview-main-container" class="watch-chart-frame" hidden></div>
             <div id="tv-symbol-chips" class="watch-chart-symbols" role="group" aria-label="관심종목 차트 선택"></div>
           </div>
 
+        </section>
+
+        <section id="view-benchmark" class="view-section">
+          <form id="benchmark-form" class="card benchmark-form">
+            <div class="form-row">
+              <div class="form-group"><label for="benchmark-start">시작일</label><input class="form-input" type="date" id="benchmark-start" required></div>
+              <div class="form-group"><label for="benchmark-end">종료일</label><input class="form-input" type="date" id="benchmark-end" required></div>
+            </div>
+            <div id="benchmark-ranges" class="benchmark-controls" aria-label="빠른 기간 선택">
+              <button class="btn-secondary" type="button" data-range="1">1개월</button>
+              <button class="btn-secondary" type="button" data-range="3">3개월</button>
+              <button class="btn-secondary" type="button" data-range="6">6개월</button>
+              <button class="btn-secondary" type="button" data-range="year">올해</button>
+              <button class="btn-secondary" type="button" data-range="12">1년</button>
+              <button class="btn-secondary" type="button" data-range="all">전체 기간</button>
+            </div>
+            <div class="form-group">
+              <label for="benchmark-file">과거 가격 CSV</label>
+              <input id="benchmark-file" class="form-input" type="file" accept=".csv,text/csv" aria-describedby="benchmark-file-help">
+              <p class="muted" id="benchmark-file-help">첫 줄은 <code>date,ticker,close,adjusted_close</code>로 입력하세요. 실제 계좌에는 비조정 종가, 가상 투자에는 배당·분할 조정 종가를 사용합니다. QQQ를 포함해주세요.</p>
+              <p class="muted" id="benchmark-source"></p>
+            </div>
+            <div>
+              <h3 class="card-title">비교 포트폴리오</h3>
+              <ul id="benchmark-strategies" class="benchmark-controls"></ul>
+              <div id="benchmark-presets" class="benchmark-controls">
+                <button class="btn-secondary" type="button" data-preset="SPY">SPY</button>
+                <button class="btn-secondary" type="button" data-preset="VOO">VOO</button>
+                <button class="btn-secondary" type="button" data-preset="SCHD">SCHD</button>
+                <button class="btn-secondary" type="button" data-preset="NVDA">NVDA</button>
+                <button class="btn-secondary" type="button" data-preset="CASH">현금</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="benchmark-lookup">비교할 종목 검색</label>
+              <input class="form-input" id="benchmark-lookup" type="search" placeholder="티커 또는 회사명" autocomplete="off">
+              <div id="benchmark-matches" class="benchmark-controls"></div>
+              <label for="benchmark-weights">종목과 비중</label>
+              <input class="form-input" id="benchmark-weights" placeholder="QQQ 50, NVDA 30, CASH 20">
+              <div class="benchmark-controls">
+                <button type="button" class="btn-secondary" id="benchmark-add">포트폴리오 추가</button>
+                <button type="button" class="btn-secondary" id="benchmark-save">구성 저장</button>
+                <button type="button" class="btn-secondary" id="benchmark-load">구성 불러오기</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label for="benchmark-rebalance">리밸런싱</label>
+                <select class="form-select" id="benchmark-rebalance">
+                  <option value="hold">매수 후 보유</option><option value="monthly">매월</option>
+                  <option value="quarterly">분기별</option><option value="yearly">매년</option>
+                </select>
+              </div>
+              <div class="form-group"><label for="benchmark-fee">가상 거래 수수료 (%)</label><input class="form-input" id="benchmark-fee" type="number" value="0" min="0" max="10" step="any" required></div>
+            </div>
+            <div class="form-group"><label for="benchmark-opening">첫 거래 기록 전 현금 (USD)</label><input class="form-input" id="benchmark-opening" type="number" value="0" min="0" step="any" required></div>
+            <button class="btn-primary" type="submit">선택한 계좌 비교</button>
+            <p role="status" id="benchmark-status" class="muted">과거 가격 CSV를 불러오면 비교할 수 있습니다.</p>
+            <details>
+              <summary>계산 기준</summary>
+              <p>미국 거래일은 CSV의 QQQ 가격 날짜를 따릅니다. 일별 종가로 평가하고 입출금은 그날 종가 시점에 반영합니다. 휴장일에는 직전 거래일 종가를 시작 평가에 쓰고, 다음 거래일 종가에 가상 매수를 합니다.</p>
+              <p>추가 입금은 설정 비중으로 배분하고 출금은 당시 가상 자산 비중에 맞춰 차감합니다. 가상 현금 이자는 0%입니다. 샤프지수는 무위험 수익률 0%, 연 252거래일 기준입니다. 자산이 없거나 관측치가 부족한 지표는 N/A로 표시합니다.</p>
+            </details>
+          </form>
+          <div id="benchmark-result" hidden>
+            <div class="card benchmark-result-card">
+              <h3 class="card-title">그냥 QQQ나 살걸?</h3>
+              <p id="benchmark-headline"></p>
+              <p id="benchmark-comparison" class="muted"></p>
+              <p id="benchmark-dates" class="muted"></p>
+              <p id="benchmark-analysis" class="muted"></p>
+            </div>
+            <div class="card benchmark-result-card">
+              <div class="benchmark-controls">
+                <label for="benchmark-mode">그래프</label>
+                <select class="form-select" id="benchmark-mode"><option value="return">누적 수익률</option><option value="nav">총 평가금액</option></select>
+                <button type="button" class="btn-secondary" id="benchmark-csv">CSV 저장</button>
+                <button type="button" class="btn-secondary" id="benchmark-image">그래프 이미지 저장</button>
+              </div>
+              <div id="benchmark-legend" class="benchmark-controls" aria-label="비교 그래프 범례"></div>
+              <div><canvas id="benchmark-chart" aria-label="벤치마크 비교 그래프"></canvas></div>
+              <p id="benchmark-point" class="muted"></p>
+            </div>
+            <div class="card table-container">
+              <table id="benchmark-metrics"><thead></thead><tbody></tbody></table>
+            </div>
+          </div>
         </section>
 
         <section id="view-market-cap" class="view-section">
@@ -563,6 +650,9 @@
       </button>
       <button type="button" class="mobile-nav-btn" data-view="stocks" data-stock-mode="watch">
         <span class="icon watch-nav-icon" aria-hidden="true">★</span><span>관심종목</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-view="benchmark">
+        <span class="icon" aria-hidden="true">↗</span><span>벤치마크</span>
       </button>
       <details id="mobile-more" class="mobile-more">
         <summary class="mobile-nav-btn"><span class="icon" aria-hidden="true">···</span><span>더보기</span></summary>

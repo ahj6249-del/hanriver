@@ -1020,7 +1020,7 @@ dialog::backdrop {
   .content-area { min-width: 0; padding: 12px; }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     overflow: visible;
     padding-inline: max(4px, env(safe-area-inset-left, 0px)) max(4px, env(safe-area-inset-right, 0px));
     white-space: normal;
@@ -1217,3 +1217,17 @@ dialog::backdrop {
   .market-cap-table :is(th, td) { padding-inline: 5px; font-size: 11px; }
   .market-cap-name { max-width: 12ch; }
 }
+
+.benchmark-form { display: grid; gap: 14px; margin-bottom: 12px; }
+.benchmark-form > .btn-primary { justify-self: start; }
+.benchmark-form p, .benchmark-result-card p { overflow-wrap: anywhere; }
+.benchmark-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+#benchmark-strategies { margin: 0 0 8px; padding: 0; list-style: none; }
+#benchmark-strategies li { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--bg-input); border-radius: var(--radius-sm); }
+.benchmark-result-card { margin-bottom: 12px; }
+#benchmark-headline { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+#benchmark-chart { display: block; width: 100%; height: 275px; touch-action: pan-y; }
+#benchmark-legend { margin-block: 10px; }
+#benchmark-legend button[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+#benchmark-metrics { min-width: 100%; }
+#benchmark-metrics td { white-space: nowrap; }
