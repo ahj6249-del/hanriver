@@ -355,7 +355,7 @@ function renderPortfolio() {
   if (mobileContainer) {
     mobileContainer.classList.toggle('holdings-detailed', showDetails);
     mobileContainer.innerHTML = (showDetails ? '' : `<div class="holding-summary holding-summary-labels">
-      <span>종목</span><span>평가금액</span><span>수익률</span>
+      <span>종목</span><span>현재가</span><span>수익률</span>
     </div>`) + p.holdings.map(h => {
       const isProfit = h.unrealizedPnL >= 0;
       return `
@@ -363,7 +363,7 @@ function renderPortfolio() {
           <summary class="holding-summary">
             <span class="holding-symbol"><strong>${escapeHTML(h.ticker)}</strong>${h.side === 'SHORT' ? '<small>숏</small>' : ''}</span>
             <span class="holding-basis">보유 ${formatQty(h.qty)}주 · 평단 ${fmtMoney(h.costBasis)}</span>
-            <span class="tabular">${fmtMoney(h.evalValue)}</span>
+            <span class="tabular" title="${escapeHTML(quoteLabel(h.quote))}">${h.quote?.price > 0 ? fmtMoney(h.quote.price) : '—'}</span>
             <span class="tabular ${isProfit ? 'profit' : 'loss'}">${formatPercent(h.returnRate, true)} <span class="holding-chevron" aria-hidden="true">⌄</span></span>
           </summary>
           <div class="port-card">
