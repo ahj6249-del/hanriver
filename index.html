@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>한강아니면 한강뷰 (Hanriver) · 미국 주식 포트폴리오 & 매매 성과 분석</title>
+  <meta name="description" content="성공하면 한강뷰, 실패하면 한강. 미국 주식 투자자를 위한 감이 아닌 데이터 기반 포트폴리오 관리 및 매매 습관 분석 플랫폼">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#10b981">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="한강아니면 한강뷰">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" href="icon-192.png">
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js" async></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 사이드바 (데스크톱) -->
+    <aside class="sidebar">
+      <div class="brand-section">
+        <!-- 한강 물결과 차트 곡선을 결합한 브랜드 로고 -->
+        <svg class="brand-logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="10" fill="#111827"/>
+          <path d="M8 26C14 26 16 16 22 16C28 16 30 22 34 14" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 31C13 31 16 23 21 23C26 23 29 27 33 21" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <circle cx="34" cy="14" r="2.5" fill="#10b981"/>
+        </svg>
+        <div class="brand-text">
+          <h1>한강아니면 한강뷰</h1>
+          <span class="brand-en">HANRIVER</span>
+        </div>
+      </div>
+
+      <div class="slogan-badge">
+        <strong>"성공하면 한강뷰, 실패하면 한강."</strong>
+        감이 아닌 데이터로 투자하자
+      </div>
+
+      <div style="padding: 10px 16px 0;">
+        <button id="btn-quick-new-tx" class="quick-action-btn">
+          <span>＋</span> 새 거래 기록
+        </button>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-view="dashboard">
+          <span class="icon">📊</span> 대시보드
+        </button>
+        <button class="nav-item" data-view="portfolio">
+          <span class="icon">💼</span> 내 포트폴리오
+        </button>
+        <button class="nav-item" data-view="transactions">
+          <span class="icon">📝</span> 거래내역
+        </button>
+        <button class="nav-item" data-view="performance">
+          <span class="icon">📈</span> 투자 성과 분석
+        </button>
+        <button class="nav-item" data-view="habits">
+          <span class="icon">🧠</span> 매매 습관 분석
+        </button>
+        <button class="nav-item" data-view="journal">
+          <span class="icon">📓</span> 투자 복기 노트
+        </button>
+        <button class="nav-item" data-view="stocks">
+          <span class="icon">🔍</span> 종목 검색 & 시세
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="icon">⚙️</span> 설정
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div>한강아니면 한강뷰 v1.0 MVP</div>
+        <div style="margin-top: 4px; color: var(--accent-emerald);">데이터 기기 내 안전 보관</div>
+      </div>
+    </aside>
+
+    <!-- 메인 래퍼 -->
+    <div class="main-wrapper">
+      <!-- 상단 헤더 -->
+      <header class="top-header">
+        <div class="header-left">
+          <h2 class="page-title" id="current-page-title">대시보드</h2>
+          <select class="account-selector" id="account-select">
+            <option value="default">메인 투자계좌</option>
+            <option value="growth">공격형 모멘텀 계좌</option>
+            <option value="dividend">배당·가치주 계좌</option>
+          </select>
+        </div>
+        <div class="header-right">
+          <div class="currency-toggle">
+            <button class="currency-btn active" id="btn-curr-usd">USD ($)</button>
+            <button class="currency-btn" id="btn-curr-krw">KRW (₩)</button>
+          </div>
+          <button class="btn-header-action" id="btn-install-pwa" style="background: rgba(16,185,129,0.15); border-color: var(--accent-emerald); color: var(--accent-emerald); font-weight: 600;">
+            <span>📲</span> <span class="hide-mobile">앱 설치</span>
+          </button>
+          <button class="btn-header-action" id="btn-header-refresh" title="시세 및 통계 새로고침">
+            <span id="refresh-spin-icon">↻</span> <span class="hide-mobile">시세 갱신</span>
+          </button>
+          <button class="btn-header-action" id="btn-header-settings" title="설정">
+            <span>⚙️</span> <span class="hide-mobile">설정</span>
+          </button>
+          <span id="api-status-badge" style="display: none; font-size: 11.5px; padding: 4px 10px; border-radius: 20px; background: rgba(16,185,129,0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600;">
+            ● Finnhub 실시간
+          </span>
+          <button class="btn-header-action" id="btn-load-sample-top" style="border-color: rgba(16,185,129,0.3); color: var(--accent-emerald);">
+            <span>🚀</span> <span class="hide-mobile">샘플 데이터</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- 본문 컨텐츠 -->
+      <main class="content-area">
+        <!-- 1. 대시보드 뷰 -->
+        <section id="view-dashboard" class="view-section active">
+          <!-- 연간 목표 달성 프로그레스 배너 -->
+          <div class="goal-banner">
+            <div class="goal-header">
+              <div class="goal-title">
+                <span>🎯</span>
+                <span id="goal-banner-title">2026년 목표 수익 달성률</span>
+              </div>
+              <div class="goal-stats">
+                <span id="goal-progress-text" class="tabular" style="font-weight: 700; color: var(--accent-emerald);">0.0%</span>
+                <span class="muted" style="font-size: 12px;" id="goal-target-desc">(목표: $20,000 / +25.0%)</span>
+              </div>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="goal-progress-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- 탭 바로가기 퀵 바 -->
+          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; scrollbar-width: none;" id="dashboard-quick-nav">
+            <button class="btn-tv-chip btn-quick-nav active" data-view="dashboard">📊 대시보드</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="portfolio">💼 내 포트폴리오</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="habits" style="background: rgba(168,85,247,0.18); color: #c084fc; border-color: rgba(168,85,247,0.4); font-weight: 700;">🧠 매매습관 & AI진단</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="performance">📈 투자 성과분석</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="journal">📓 투자 복기노트</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="stocks">🔍 종목시세·차트</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="transactions">📝 전체 거래내역</button>
+            <button class="btn-tv-chip btn-quick-nav" data-view="settings">⚙️ 설정</button>
+          </div>
+
+          <!-- 핵심 지표 카드 그리드 -->
+          <div class="metrics-grid">
+            <div class="card metric-card">
+              <span class="metric-label">총 계좌 평가금액 (NAV)</span>
+              <span class="metric-value tabular" id="m-total-nav">$0.00</span>
+              <span class="metric-sub muted" id="m-total-nav-krw">₩0</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">보유 주식 평가금액</span>
+              <span class="metric-value tabular" id="m-stock-eval">$0.00</span>
+              <span class="metric-sub muted" id="m-stock-count">0개 종목 보유</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">현금 잔고 (Cash)</span>
+              <span class="metric-value tabular" id="m-cash">$0.00</span>
+              <span class="metric-sub muted" id="m-cash-ratio">비중 0.0%</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">당일 손익 (Today)</span>
+              <span class="metric-value tabular" id="m-daily-pnl">$0.00</span>
+              <span class="metric-sub tabular" id="m-daily-rate">0.00%</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">전체 미실현손익 (평가손익)</span>
+              <span class="metric-value tabular" id="m-unrealized-pnl">$0.00</span>
+              <span class="metric-sub tabular" id="m-unrealized-rate">0.00%</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">전체 누적 실현손익</span>
+              <span class="metric-value tabular" id="m-realized-pnl">$0.00</span>
+              <span class="metric-sub muted" id="m-closed-count">0건 청산 완료</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">매매 승률 (Win Rate)</span>
+              <span class="metric-value tabular" id="m-win-rate">0.0%</span>
+              <span class="metric-sub muted" id="m-win-loss-count">0승 0패</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">평균 손익비 / Profit Factor</span>
+              <span class="metric-value tabular" id="m-profit-factor">0.00</span>
+              <span class="metric-sub muted" id="m-payoff-ratio">손익비 0.00</span>
+            </div>
+          </div>
+
+          <!-- 차트 영역: 자산 변화 곡선 + 자산 비중 도넛 -->
+          <div class="charts-grid">
+            <div class="card">
+              <div class="chart-header">
+                <div>
+                  <h3 class="card-title">자산 변화 및 누적 수익률 추이</h3>
+                  <p class="muted" style="font-size: 12px;">입출금 분리 실제 투자 순자산 추이</p>
+                </div>
+                <div class="chart-period-tabs">
+                  <button class="period-tab" data-period="1W">1W</button>
+                  <button class="period-tab" data-period="1M">1M</button>
+                  <button class="period-tab" data-period="3M">3M</button>
+                  <button class="period-tab" data-period="6M">6M</button>
+                  <button class="period-tab active" data-period="ALL">전체</button>
+                </div>
+              </div>
+              <div class="canvas-container">
+                <canvas id="chart-asset-curve"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="chart-header">
+                <h3 class="card-title">종목별 자산 비중</h3>
+              </div>
+              <div class="canvas-container">
+                <canvas id="chart-allocation"></canvas>
+              </div>
+              <div id="allocation-legend" style="margin-top: 12px; font-size: 11.5px; display: flex; flex-direction: column; gap: 6px;"></div>
+            </div>
+          </div>
+
+          <!-- 월별 손익 바 차트 -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="chart-header">
+              <h3 class="card-title">월별 실현손익 (Monthly P&L)</h3>
+            </div>
+            <div class="canvas-container" style="height: 200px;">
+              <canvas id="chart-monthly-pnl"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 내 포트폴리오 뷰 -->
+        <section id="view-portfolio" class="view-section">
+          <div class="card">
+            <div class="chart-header">
+              <div>
+                <h3 class="card-title" style="font-size: 16px;">보유 종목 현황 (Holdings)</h3>
+                <p class="muted" style="font-size: 12px;">이동평균법 기준 정확한 매입단가 및 미실현 손익</p>
+              </div>
+              <button class="btn-header-action" id="btn-add-tx-from-port">
+                <span>＋</span> 종목 매수/매도
+              </button>
+            </div>
+            <div class="table-container portfolio-table-desktop">
+              <table id="table-holdings">
+                <thead>
+                  <tr>
+                    <th>종목</th>
+                    <th>포지션</th>
+                    <th style="text-align: right;">보유수량</th>
+                    <th style="text-align: right;">평균매수가</th>
+                    <th style="text-align: right;">현재가</th>
+                    <th style="text-align: right;">평가금액</th>
+                    <th style="text-align: right;">미실현손익</th>
+                    <th style="text-align: right;">수익률</th>
+                    <th style="text-align: right;">포트비중</th>
+                    <th style="text-align: center;">관리</th>
+                  </tr>
+                </thead>
+                <tbody id="holdings-tbody">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
+            </div>
+            <!-- 모바일 전용 포트폴리오 카드 뷰 -->
+            <div class="portfolio-cards-mobile" id="holdings-cards-mobile">
+              <!-- JS 동적 생성 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 거래내역 뷰 -->
+        <section id="view-transactions" class="view-section">
+          <div class="card">
+            <div class="chart-header" style="flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 class="card-title" style="font-size: 16px;">전체 거래내역 (Ledger)</h3>
+                <p class="muted" style="font-size: 12px;">매수, 매도, 숏, 숏커버, 배당, 입출금 상세 내역</p>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="text" id="tx-search-input" class="form-input" placeholder="티커 검색 (예: NVDA)" style="padding: 6px 12px; font-size: 12.5px; width: 150px;">
+                <select id="tx-type-filter" class="form-select" style="padding: 6px 10px; font-size: 12.5px;">
+                  <option value="ALL">모든 거래 유형</option>
+                  <option value="BUY">매수 (BUY)</option>
+                  <option value="SELL">매도 (SELL)</option>
+                  <option value="SHORT">공매도 (SHORT)</option>
+                  <option value="COVER">숏커버 (COVER)</option>
+                  <option value="DIVIDEND">배당 (DIVIDEND)</option>
+                  <option value="DEPOSIT">입금</option>
+                  <option value="WITHDRAW">출금</option>
+                </select>
+                <button class="btn-primary" id="btn-new-tx" style="padding: 6px 14px; font-size: 12.5px;">＋ 거래 추가</button>
+                <button class="btn-secondary" id="btn-export-csv" style="padding: 6px 12px; font-size: 12.5px;">CSV 다운로드</button>
+              </div>
+            </div>
+            <div class="table-container tx-table-desktop">
+              <table>
+                <thead>
+                  <tr>
+                    <th>날짜·시각</th>
+                    <th>유형</th>
+                    <th>티커</th>
+                    <th>종목명</th>
+                    <th style="text-align: right;">수량</th>
+                    <th style="text-align: right;">단가</th>
+                    <th style="text-align: right;">수수료/세금</th>
+                    <th style="text-align: right;">총 정산금액</th>
+                    <th>메모</th>
+                    <th style="text-align: center;">작업</th>
+                  </tr>
+                </thead>
+                <tbody id="tx-tbody">
+                  <!-- JS 동적 렌더링 -->
+                </tbody>
+              </table>
+            </div>
+            <!-- 모바일 전용 거래내역 카드 뷰 -->
+            <div class="tx-cards-mobile" id="tx-cards-mobile">
+              <!-- JS 동적 렌더링 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. 투자 성과 분석 뷰 -->
+        <section id="view-performance" class="view-section">
+          <div class="metrics-grid" style="margin-bottom: 24px;">
+            <div class="card metric-card">
+              <span class="metric-label">총 거래 횟수</span>
+              <span class="metric-value tabular" id="perf-total-trades">0</span>
+              <span class="metric-sub muted" id="perf-closed-trades">0개 포지션 완료</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">매매 승률</span>
+              <span class="metric-value tabular" id="perf-win-rate">0.0%</span>
+              <span class="metric-sub muted" id="perf-win-loss-ratio">0승 0패</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">평균 수익 거래 (Avg Win)</span>
+              <span class="metric-value tabular profit" id="perf-avg-win">$0.00</span>
+              <span class="metric-sub muted">이익 거래 평균치</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">평균 손실 거래 (Avg Loss)</span>
+              <span class="metric-value tabular loss" id="perf-avg-loss">$0.00</span>
+              <span class="metric-sub muted">손실 거래 평균치</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">Profit Factor (수익/손실비)</span>
+              <span class="metric-value tabular" id="perf-profit-factor">0.00</span>
+              <span class="metric-sub muted">총이익 / 총손실</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">최대 연속 수익 / 손실</span>
+              <span class="metric-value tabular" id="perf-consecutive">0연승 / 0연패</span>
+              <span class="metric-sub muted">연속 매매 흐름</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">최대 낙폭 (MDD)</span>
+              <span class="metric-value tabular loss" id="perf-mdd">0.00%</span>
+              <span class="metric-sub muted">고점 대비 최대 하락</span>
+            </div>
+            <div class="card metric-card">
+              <span class="metric-label">롱 vs 숏 성과</span>
+              <span class="metric-value tabular" id="perf-side-pnl">$0 / $0</span>
+              <span class="metric-sub muted">롱 순익 / 숏 순익</span>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <div class="card">
+              <h3 class="card-title">종목별 실현손익 순위 (Top/Bottom Tickers)</h3>
+              <div class="canvas-container">
+                <canvas id="chart-ticker-pnl"></canvas>
+              </div>
+            </div>
+            <div class="card">
+              <h3 class="card-title">매매 손익 분포 (PnL Distribution)</h3>
+              <div class="canvas-container">
+                <canvas id="chart-pnl-distribution"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. 매매 습관 분석 뷰 -->
+        <section id="view-habits" class="view-section">
+          <div class="card" style="margin-bottom: 24px;">
+            <h3 class="card-title" style="font-size: 16px;">⏱️ 보유기간별 매매 성과 분석</h3>
+            <p class="muted" style="font-size: 12px; margin-bottom: 16px;">어느 기간 동안 들고 있을 때 가장 수익률과 승률이 높았는지 분석합니다.</p>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>보유 기간 구간</th>
+                    <th style="text-align: center;">거래 건수</th>
+                    <th style="text-align: right;">승률</th>
+                    <th style="text-align: right;">총 실현손익</th>
+                    <th style="text-align: right;">평균 손익</th>
+                  </tr>
+                </thead>
+                <tbody id="habits-holding-tbody">
+                  <!-- JS 동적 생성 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title" style="font-size: 16px;">💡 데이터 기반 매매 습관 진단</h3>
+            <div id="habits-diagnosis-content" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <!-- JS 분석 요약 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. 투자 복기 노트 뷰 -->
+        <section id="view-journal" class="view-section">
+          <div class="card">
+            <div class="chart-header">
+              <div>
+                <h3 class="card-title" style="font-size: 16px;">📓 투자 복기 노트 (Trade Journal)</h3>
+                <p class="muted" style="font-size: 12px;">매매 당시의 아이디어, 심리 상태, 개선할 점을 기록하여 실수를 줄입니다.</p>
+              </div>
+              <button class="btn-primary" id="btn-new-journal-note">＋ 새 복기 작성</button>
+            </div>
+            <div id="journal-cards-container" style="display: flex; flex-direction: column; gap: 14px; margin-top: 16px;">
+              <!-- JS 동적 렌더링 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. 종목 검색 및 시세 뷰 -->
+        <section id="view-stocks" class="view-section">
+          <!-- TradingView 실시간 캔들 차트 섹션 -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="chart-header" style="flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 class="card-title" id="tv-main-title" style="font-size: 16px;">📈 TradingView 실시간 캔들 차트 (NVDA)</h3>
+                <p class="muted" style="font-size: 12px;">실시간 캔들, 거래량, 이동평균선 및 보조지표</p>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="tv-symbol-chips">
+                <button class="btn-secondary btn-tv-chip active" data-symbol="NASDAQ:NVDA">NVDA</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:AAPL">AAPL</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:TSLA">TSLA</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="AMEX:SPY">SPY</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:QQQ">QQQ</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="NYSE:PLTR">PLTR</button>
+                <button class="btn-secondary btn-tv-chip" data-symbol="NASDAQ:MSFT">MSFT</button>
+              </div>
+            </div>
+            <div id="tradingview-main-container" style="height: 520px; width: 100%; border-radius: 8px; overflow: hidden; background: #07090e; margin-top: 10px;">
+              <!-- TradingView iframe / widget 동적 주입 -->
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 20px;">
+            <h3 class="card-title">미국 주식 실시간/지연 시세 검색</h3>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <input type="text" id="stock-search-input" class="form-input" placeholder="티커 또는 회사명 (예: NVDA, Apple, 테슬라)" style="flex: 1;">
+              <button class="btn-primary" id="btn-stock-search">검색</button>
+            </div>
+          </div>
+          <div id="stock-search-results" class="metrics-grid">
+            <!-- JS 동적 렌더링 -->
+          </div>
+        </section>
+
+        <!-- 8. 설정 뷰 -->
+        <section id="view-settings" class="view-section">
+          <div class="card" style="margin-bottom: 20px;">
+            <h3 class="card-title">브랜드 및 화면 설정</h3>
+            <div class="modal-body" style="padding: 16px 0;">
+              <div class="form-group">
+                <label>수익 / 손실 색상 체계</label>
+                <select id="setting-color-mode" class="form-select">
+                  <option value="global">글로벌 표준 (수익: 에메랄드 녹색 / 손실: 빨간색)</option>
+                  <option value="korean">한국형 (수익: 빨간색 / 손실: 파란색)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>연간 목표 수익금 (USD $)</label>
+                  <input type="number" id="setting-target-profit" class="form-input" value="20000">
+                </div>
+                <div class="form-group">
+                  <label>연간 목표 수익률 (%)</label>
+                  <input type="number" id="setting-target-rate" class="form-input" value="25">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>최대 허용 낙폭 (MDD %)</label>
+                  <input type="number" id="setting-max-mdd" class="form-input" value="15">
+                </div>
+                <div class="form-group">
+                  <label>원/달러 환율 (KRW)</label>
+                  <input type="number" id="setting-fx-rate" class="form-input" value="1425">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 20px; border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.03);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <h3 class="card-title" style="color: var(--accent-emerald); display: flex; align-items: center; gap: 6px;">
+                <span>🟢</span> Finnhub 미국 주식 실시간 시세 연동
+              </h3>
+              <a href="https://finnhub.io/register" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 6px 12px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <span>🔗</span> Finnhub 무료 API 키 발급 (1분 소요)
+              </a>
+            </div>
+            
+            <p class="muted" style="font-size: 12.5px; line-height: 1.6; margin-bottom: 14px;">
+              Finnhub 무료 계정을 통해 미국 정규장 실시간 체결가, 등락률, 전일 종가를 호출합니다. 발급받은 API 키를 아래에 입력하고 <strong>[키 검증 및 저장]</strong>을 누르면 즉시 포트폴리오에 실시간 시세가 연동됩니다.
+            </p>
+
+            <div class="modal-body" style="padding: 0;">
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label style="font-weight: 600;">Finnhub API Key</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" id="setting-finnhub-key" class="form-input" placeholder="Finnhub에서 발급받은 API 키 붙여넣기" style="flex: 1;">
+                  <button class="btn-primary" id="btn-test-finnhub" style="white-space: nowrap; padding: 8px 16px;">⚡ 키 검증 및 저장</button>
+                </div>
+              </div>
+              <div id="finnhub-test-result" style="font-size: 12px; min-height: 18px; margin-bottom: 10px;"></div>
+
+              <details style="margin-top: 10px; font-size: 12px; color: var(--text-secondary); background: var(--bg-card); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <summary style="cursor: pointer; font-weight: 600; color: var(--text-main);">💡 Finnhub 무료 키 1분 발급 가이드</summary>
+                <ol style="margin: 8px 0 0 18px; line-height: 1.8;">
+                  <li>우측 상단 <strong>[Finnhub 무료 API 키 발급]</strong> 링크 또는 <code style="color: var(--accent-emerald);">finnhub.io/register</code> 접속</li>
+                  <li>이메일과 비밀번호 입력 후 <strong>Get Free API Key</strong> 클릭</li>
+                  <li>로그인 후 나타나는 대시보드 메인의 <strong>API Key</strong> 복사</li>
+                  <li>위 입력창에 붙여넣고 <strong>[⚡ 키 검증 및 저장]</strong> 클릭하면 연동 완료!</li>
+                </ol>
+              </details>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 20px;">
+            <h3 class="card-title">기타 외부 주가 API (선택 사항)</h3>
+            <p class="muted" style="font-size: 12px; margin-bottom: 12px;">Twelve Data 등 보조 API 키를 등록하실 수 있습니다.</p>
+            <div class="modal-body" style="padding: 0;">
+              <div class="form-group">
+                <label>Twelve Data API Key</label>
+                <input type="password" id="setting-twelve-key" class="form-input" placeholder="Twelve Data 무료 API 키 입력">
+              </div>
+              <button class="btn-secondary" id="btn-save-settings" style="align-self: flex-start;">일반 설정 저장</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">데이터 백업 및 초기화</h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px;">
+              <button class="btn-primary" id="btn-load-sample">🚀 실전 예제 데이터 불러오기</button>
+              <button class="btn-secondary" id="btn-export-json">💾 전체 데이터 백업 (JSON)</button>
+              <button class="btn-secondary" id="btn-import-json-trigger">📂 백업 파일 복원</button>
+              <input type="file" id="json-file-input" accept=".json" style="display: none;">
+              <button class="btn-secondary" id="btn-clear-all" style="border-color: #ef4444; color: #ef4444;">⚠️ 데이터 전체 삭제</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 모바일 하단 내비게이션 바 -->
+    <nav class="mobile-nav">
+      <button class="mobile-nav-btn active" data-view="dashboard">
+        <span class="icon">📊</span>
+        <span>대시보드</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="portfolio">
+        <span class="icon">💼</span>
+        <span>포트폴리오</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="habits">
+        <span class="icon">🧠</span>
+        <span>매매습관</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="performance">
+        <span class="icon">📈</span>
+        <span>성과분석</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="journal">
+        <span class="icon">📓</span>
+        <span>복기노트</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="stocks">
+        <span class="icon">🔍</span>
+        <span>시세차트</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="transactions">
+        <span class="icon">📝</span>
+        <span>거래내역</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="settings">
+        <span class="icon">⚙️</span>
+        <span>설정</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- 모달: 거래 추가/수정 다이얼로그 -->
+  <dialog id="modal-transaction" class="custom-modal">
+    <form id="form-transaction" method="dialog">
+      <div class="modal-header">
+        <h3 id="modal-tx-title">새 거래 기록</h3>
+        <button type="button" class="btn-close" id="btn-close-tx-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tx-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>거래 일시 *</label>
+            <input type="datetime-local" id="tx-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label>거래 유형 *</label>
+            <select id="tx-type" class="form-select" required>
+              <option value="BUY">매수 (BUY - 롱)</option>
+              <option value="SELL">매도 (SELL - 롱 익절/손절)</option>
+              <option value="SHORT">공매도 (SHORT - 숏 진입)</option>
+              <option value="COVER">숏커버 (COVER - 숏 청산)</option>
+              <option value="DEPOSIT">원금 입금 (DEPOSIT)</option>
+              <option value="WITHDRAW">원금 출금 (WITHDRAW)</option>
+              <option value="DIVIDEND">배당금 입금 (DIVIDEND)</option>
+              <option value="FEE">기타 수수료 (FEE)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row" id="row-ticker-name">
+          <div class="form-group">
+            <label>티커 (Ticker) *</label>
+            <input type="text" id="tx-ticker" class="form-input" placeholder="예: NVDA, AAPL" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label>종목명</label>
+            <input type="text" id="tx-name" class="form-input" placeholder="예: 엔비디아">
+          </div>
+        </div>
+
+        <div style="margin-top: -8px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;" id="quick-ticker-chips">
+          <span style="font-size: 11px; color: var(--text-muted); align-self: center;">빠른선택:</span>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="NVDA" data-name="NVIDIA Corporation" data-price="145.20">NVDA</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="AAPL" data-name="Apple Inc." data-price="226.50">AAPL</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="TSLA" data-name="Tesla, Inc." data-price="218.40">TSLA</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="SPY" data-name="SPDR S&P 500 ETF" data-price="596.20">SPY</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="QQQ" data-name="Invesco QQQ Trust" data-price="512.40">QQQ</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="PLTR" data-name="Palantir Technologies" data-price="62.40">PLTR</button>
+        </div>
+
+        <div class="form-row" id="row-qty-price">
+          <div class="form-group" id="group-tx-qty">
+            <label id="label-tx-qty">수량 (주) *</label>
+            <input type="number" step="any" id="tx-qty" class="form-input" placeholder="0">
+          </div>
+          <div class="form-group" id="group-tx-price">
+            <label id="label-tx-price">체결 가격 (USD $) *</label>
+            <input type="number" step="any" id="tx-price" class="form-input" placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="form-row" id="row-fees">
+          <div class="form-group">
+            <label>수수료 ($)</label>
+            <input type="number" step="any" id="tx-fee" class="form-input" value="0.00">
+          </div>
+          <div class="form-group">
+            <label>제세금 ($)</label>
+            <input type="number" step="any" id="tx-tax" class="form-input" value="0.00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>매매 메모 / 원칙</label>
+          <input type="text" id="tx-memo" class="form-input" placeholder="매매 사유나 원칙 기록 (예: 전고점 돌파 진입)">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-cancel-tx">취소</button>
+        <button type="submit" class="btn-primary" id="btn-save-tx">저장하기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 모달: 복기 노트 다이얼로그 -->
+  <dialog id="modal-journal" class="custom-modal">
+    <form id="form-journal" method="dialog">
+      <div class="modal-header">
+        <h3 id="modal-journal-title">투자 복기 노트 작성</h3>
+        <button type="button" class="btn-close" id="btn-close-journal-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="journal-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>날짜 *</label>
+            <input type="date" id="journal-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label>종목 티커 *</label>
+            <input type="text" id="journal-ticker" class="form-input" placeholder="예: TSLA" style="text-transform: uppercase;" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>매수 이유</label>
+            <input type="text" id="journal-buy-reason" class="form-input" placeholder="진입 당시 근거">
+          </div>
+          <div class="form-group">
+            <label>매도 이유</label>
+            <input type="text" id="journal-sell-reason" class="form-input" placeholder="청산 당시 근거">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>투자 아이디어 & 가설</label>
+          <textarea id="journal-idea" class="form-textarea" rows="2" placeholder="어떤 시나리오를 보고 진입했는가?"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>진입 확신도 (1~5점)</label>
+            <select id="journal-confidence" class="form-select">
+              <option value="5">⭐⭐⭐⭐⭐ 5점 (원칙 일치, 높은 확신)</option>
+              <option value="4">⭐⭐⭐⭐ 4점 (비교적 확신)</option>
+              <option value="3" selected>⭐⭐⭐ 3점 (보통)</option>
+              <option value="2">⭐⭐ 2점 (충동 우려)</option>
+              <option value="1">⭐ 1점 (뇌동 매매)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>당시 투자 심리</label>
+            <input type="text" id="journal-emotion" class="form-input" placeholder="예: 차분함, 조급함, FOMO, 공포">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>잘한 점 (칭찬)</label>
+          <input type="text" id="journal-pros" class="form-input" placeholder="원칙 준수, 손절선 철저">
+        </div>
+
+        <div class="form-group">
+          <label>아쉬운 점 & 다음에 개선할 점</label>
+          <textarea id="journal-improvements" class="form-textarea" rows="2" placeholder="다음 매매에서 절대 반복하지 말아야 할 점"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>태그 (쉼표로 구분)</label>
+          <input type="text" id="journal-tags" class="form-input" placeholder="실적 발표, AI 테마, 기술적 분석, 계획된 손절">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-cancel-journal">취소</button>
+        <button type="submit" class="btn-primary" id="btn-save-journal">저장하기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 모달: TradingView 실시간 캔들 차트 다이얼로그 -->
+  <dialog id="modal-tradingview" class="custom-modal" style="max-width: 960px; width: 95%;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">📈</span>
+        <div>
+          <h3 id="modal-tv-title">실시간 캔들 차트</h3>
+          <span class="muted" style="font-size: 11px;" id="modal-tv-desc">TradingView 실시간 인터랙티브 차트</span>
+        </div>
+      </div>
+      <button type="button" class="btn-close" id="btn-close-tv-modal">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 12px; max-height: 85vh;">
+      <div id="tradingview-modal-container" style="height: 540px; width: 100%; border-radius: 8px; overflow: hidden; background: #07090e;">
+        <!-- TradingView 차트 동적 주입 -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 토스트 알림 컨테이너 -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

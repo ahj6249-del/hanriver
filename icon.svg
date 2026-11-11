@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="24" fill="#111827"/>
+  <!-- Primary Emerald Wave -->
+  <path d="M15 65 C35 38 55 58 85 28" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round"/>
+  <!-- Secondary Cyan Wave -->
+  <path d="M15 78 C35 55 55 70 85 45" fill="none" stroke="#06b6d4" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <!-- Chart Arrow Point -->
+  <circle cx="85" cy="28" r="6" fill="#10b981"/>
+</svg>

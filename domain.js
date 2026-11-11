@@ -1,0 +1,510 @@
+/**
+ * 한강아니면 한강뷰 (Hanriver) - Financial Calculation Domain Engine
+ * 미국 주식 포트폴리오 및 매매 성과 분석 계산 모듈
+ */
+
+export const TX_TYPES = {
+  BUY: 'BUY',           // 매수 (롱 진입/추가)
+  SELL: 'SELL',         // 매도 (롱 청산/부분청산)
+  SHORT: 'SHORT',       // 공매도 (숏 진입/추가)
+  COVER: 'COVER',       // 숏커버 (숏 청산/부분청산)
+  DEPOSIT: 'DEPOSIT',   // 입금
+  WITHDRAW: 'WITHDRAW', // 출금
+  DIVIDEND: 'DIVIDEND', // 배당
+  FEE: 'FEE',           // 기타 수수료
+  SPLIT: 'SPLIT'        // 주식분할
+};
+
+export const TX_TYPE_LABELS = {
+  BUY: '매수',
+  SELL: '매도',
+  SHORT: '공매도',
+  COVER: '숏커버',
+  DEPOSIT: '입금',
+  WITHDRAW: '출금',
+  DIVIDEND: '배당',
+  FEE: '수수료',
+  SPLIT: '주식분할'
+};
+
+/**
+ * 거래내역 리스트를 시간순 정렬하여 포트폴리오 상태 및 손익을 계산
+ * 이동평균법(Weighted Average Cost) 기반 원가 산출
+ */
+export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate = 1420) {
+  // 날짜/시간 순 정렬 (오름차순)
+  const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let cash = 0;
+  let totalDeposits = 0;
+  let totalWithdrawals = 0;
+  let totalDividends = 0;
+  let totalFees = 0;
+  let totalRealizedPnL = 0;
+
+  // 종목별 포지션: ticker -> { qty: 0, costBasis: 0, shortQty: 0, shortPrice: 0, realizedPnL: 0, totalFees: 0, name: '' }
+  const positions = {};
+
+  // 완료된 포지션(거래)별 기록 (성과 분석용)
+  const closedTrades = [];
+
+  for (const tx of sorted) {
+    const type = tx.type;
+    const ticker = (tx.ticker || '').toUpperCase().trim();
+    const qty = parseFloat(tx.qty) || 0;
+    const price = parseFloat(tx.price) || 0;
+    const fee = parseFloat(tx.fee) || 0;
+    const tax = parseFloat(tx.tax) || 0;
+    const totalFee = fee + tax;
+
+    totalFees += totalFee;
+
+    if (!positions[ticker] && ticker) {
+      positions[ticker] = {
+        ticker,
+        name: tx.name || ticker,
+        qty: 0,            // 롱 보유 수량
+        costBasis: 0,      // 롱 1주당 평균매수가 (수수료 포함)
+        shortQty: 0,       // 숏 보유 수량
+        shortPrice: 0,     // 숏 1주당 평균진입가
+        realizedPnL: 0,    // 종목별 누적 실현손익
+        totalFees: 0,
+        tradeCount: 0
+      };
+    }
+
+    const pos = positions[ticker];
+    if (pos) pos.totalFees += totalFee;
+
+    switch (type) {
+      case TX_TYPES.DEPOSIT: {
+        const amt = parseFloat(tx.amount || tx.price) || 0;
+        cash += amt;
+        totalDeposits += amt;
+        break;
+      }
+      case TX_TYPES.WITHDRAW: {
+        const amt = parseFloat(tx.amount || tx.price) || 0;
+        cash -= amt;
+        totalWithdrawals += amt;
+        break;
+      }
+      case TX_TYPES.DIVIDEND: {
+        const amt = parseFloat(tx.amount || (price * qty)) || 0;
+        const netDiv = amt - tax;
+        cash += netDiv;
+        totalDividends += netDiv;
+        if (pos) pos.realizedPnL += netDiv;
+        break;
+      }
+      case TX_TYPES.FEE: {
+        const amt = parseFloat(tx.amount || fee) || 0;
+        cash -= amt;
+        break;
+      }
+      case TX_TYPES.BUY: {
+        // 매수 총 지출 = 주가 * 수량 + 수수료 + 세금
+        const totalCost = (price * qty) + totalFee;
+        cash -= totalCost;
+
+        if (pos) {
+          pos.tradeCount++;
+          // 이동평균 단가 계산 (기존 보유비용 + 이번 매수비용) / 총 수량
+          const prevTotalCost = pos.costBasis * pos.qty;
+          pos.qty += qty;
+          pos.costBasis = pos.qty > 0 ? (prevTotalCost + totalCost) / pos.qty : 0;
+        }
+        break;
+      }
+      case TX_TYPES.SELL: {
+        if (!pos || pos.qty <= 0) break;
+        pos.tradeCount++;
+
+        const sellQty = Math.min(qty, pos.qty);
+        // 매도 순 수입 = 매도가 * 수량 - 수수료 - 세금
+        const proceeds = (price * sellQty) - totalFee;
+        const cost = pos.costBasis * sellQty;
+        const tradePnL = proceeds - cost;
+
+        cash += proceeds;
+        pos.qty -= sellQty;
+        pos.realizedPnL += tradePnL;
+        totalRealizedPnL += tradePnL;
+
+        if (pos.qty === 0) {
+          pos.costBasis = 0;
+        }
+
+        closedTrades.push({
+          id: tx.id,
+          date: tx.date,
+          ticker,
+          name: pos.name,
+          side: 'LONG',
+          qty: sellQty,
+          entryPrice: pos.costBasis,
+          exitPrice: price,
+          pnl: tradePnL,
+          pnlPercent: cost > 0 ? (tradePnL / cost) * 100 : 0,
+          fee: totalFee
+        });
+        break;
+      }
+      case TX_TYPES.SHORT: {
+        // 공매도 진입: 현금 입금(마진) = 주가 * 수량 - 수수료
+        const proceeds = (price * qty) - totalFee;
+        cash += proceeds;
+
+        if (pos) {
+          pos.tradeCount++;
+          const prevShortVal = pos.shortPrice * pos.shortQty;
+          pos.shortQty += qty;
+          pos.shortPrice = pos.shortQty > 0 ? (prevShortVal + (price * qty)) / pos.shortQty : 0;
+        }
+        break;
+      }
+      case TX_TYPES.COVER: {
+        // 숏커버(환매수): 현금 지출 = 주가 * 수량 + 수수료
+        if (!pos || pos.shortQty <= 0) break;
+        pos.tradeCount++;
+
+        const coverQty = Math.min(qty, pos.shortQty);
+        const costToCover = (price * coverQty) + totalFee;
+        const shortVal = pos.shortPrice * coverQty;
+        const tradePnL = shortVal - costToCover; // 진입가보다 낮게 사면 이익
+
+        cash -= costToCover;
+        pos.shortQty -= coverQty;
+        pos.realizedPnL += tradePnL;
+        totalRealizedPnL += tradePnL;
+
+        if (pos.shortQty === 0) {
+          pos.shortPrice = 0;
+        }
+
+        closedTrades.push({
+          id: tx.id,
+          date: tx.date,
+          ticker,
+          name: pos.name,
+          side: 'SHORT',
+          qty: coverQty,
+          entryPrice: pos.shortPrice,
+          exitPrice: price,
+          pnl: tradePnL,
+          pnlPercent: shortVal > 0 ? (tradePnL / shortVal) * 100 : 0,
+          fee: totalFee
+        });
+        break;
+      }
+      case TX_TYPES.SPLIT: {
+        // ratio: 분할 비율 (예: 4 for 4-for-1 split, 0.5 for reverse split)
+        const ratio = parseFloat(tx.ratio) || 1;
+        if (pos && ratio > 0) {
+          if (pos.qty > 0) {
+            pos.qty *= ratio;
+            pos.costBasis /= ratio;
+          }
+          if (pos.shortQty > 0) {
+            pos.shortQty *= ratio;
+            pos.shortPrice /= ratio;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // 현재가 기준 평가금액 및 미실현손익 계산
+  let totalStockEval = 0;
+  let totalUnrealizedPnL = 0;
+  let totalDailyPnL = 0;
+
+  const activeHoldings = [];
+
+  for (const [ticker, pos] of Object.entries(positions)) {
+    const quote = currentPrices[ticker] || { price: pos.costBasis || pos.shortPrice || 0, changePercent: 0, previousClose: pos.costBasis || 0 };
+    const curPrice = quote.price || (pos.qty > 0 ? pos.costBasis : pos.shortPrice);
+    const prevClose = quote.previousClose || curPrice;
+
+    // 롱 포지션 계산
+    if (pos.qty > 0) {
+      const evalValue = pos.qty * curPrice;
+      const totalCost = pos.qty * pos.costBasis;
+      const unrealizedPnL = evalValue - totalCost;
+      const returnRate = totalCost > 0 ? (unrealizedPnL / totalCost) * 100 : 0;
+      const dailyPnL = pos.qty * (curPrice - prevClose);
+
+      totalStockEval += evalValue;
+      totalUnrealizedPnL += unrealizedPnL;
+      totalDailyPnL += dailyPnL;
+
+      activeHoldings.push({
+        ticker,
+        name: pos.name,
+        side: 'LONG',
+        qty: pos.qty,
+        costBasis: pos.costBasis,
+        currentPrice: curPrice,
+        previousClose: prevClose,
+        evalValue,
+        unrealizedPnL,
+        returnRate,
+        changePercent: quote.changePercent || 0,
+        dailyPnL,
+        realizedPnL: pos.realizedPnL
+      });
+    }
+
+    // 숏 포지션 계산
+    if (pos.shortQty > 0) {
+      const shortLiability = pos.shortQty * curPrice;
+      const shortEntryVal = pos.shortQty * pos.shortPrice;
+      const unrealizedPnL = shortEntryVal - shortLiability;
+      const returnRate = shortEntryVal > 0 ? (unrealizedPnL / shortEntryVal) * 100 : 0;
+      const dailyPnL = pos.shortQty * (prevClose - curPrice);
+
+      totalUnrealizedPnL += unrealizedPnL;
+      totalDailyPnL += dailyPnL;
+
+      activeHoldings.push({
+        ticker,
+        name: pos.name,
+        side: 'SHORT',
+        qty: pos.shortQty,
+        costBasis: pos.shortPrice,
+        currentPrice: curPrice,
+        previousClose: prevClose,
+        evalValue: -shortLiability,
+        unrealizedPnL,
+        returnRate,
+        changePercent: quote.changePercent || 0,
+        dailyPnL,
+        realizedPnL: pos.realizedPnL
+      });
+    }
+  }
+
+  // 총 순자산 (NAV) = 현금 + 주식평가금 (롱 평가금 + 숏 미실현손익 반영)
+  const totalNav = cash + totalStockEval + (activeHoldings.filter(h => h.side === 'SHORT').reduce((sum, h) => sum + h.unrealizedPnL, 0));
+  
+  // 비중(%) 계산
+  for (const h of activeHoldings) {
+    h.weightPercent = totalNav > 0 ? (Math.abs(h.evalValue) / totalNav) * 100 : 0;
+  }
+
+  // 순 원금 = 총 입금 - 총 출금
+  const netPrincipal = totalDeposits - totalWithdrawals;
+  // 총 누적 투자손익 = 실현손익 + 미실현손익 + 배당 - 수수료
+  const totalInvestmentPnL = totalRealizedPnL + totalUnrealizedPnL + totalDividends;
+  const cumulativeReturnRate = netPrincipal > 0 ? (totalInvestmentPnL / netPrincipal) * 100 : 0;
+  const dailyReturnRate = (totalNav - totalDailyPnL) > 0 ? (totalDailyPnL / (totalNav - totalDailyPnL)) * 100 : 0;
+
+  return {
+    cash,
+    totalDeposits,
+    totalWithdrawals,
+    netPrincipal,
+    totalStockEval,
+    totalNav,
+    totalRealizedPnL,
+    totalUnrealizedPnL,
+    totalDividends,
+    totalFees,
+    totalInvestmentPnL,
+    cumulativeReturnRate,
+    totalDailyPnL,
+    dailyReturnRate,
+    holdings: activeHoldings,
+    positions,
+    closedTrades,
+    fxRate
+  };
+}
+
+/**
+ * 투자 성과 상세 통계 지표 계산
+ */
+export function calculatePerformanceMetrics(closedTrades = [], portfolio = {}) {
+  const totalTrades = closedTrades.length;
+  if (totalTrades === 0) {
+    return {
+      totalTrades: 0,
+      winCount: 0,
+      lossCount: 0,
+      winRate: 0,
+      profitFactor: 0,
+      avgWin: 0,
+      avgLoss: 0,
+      payoffRatio: 0,
+      maxConsecutiveWins: 0,
+      maxConsecutiveLosses: 0,
+      maxDrawdown: 0,
+      monthlyPnL: {},
+      tickerPnL: {}
+    };
+  }
+
+  let winCount = 0;
+  let lossCount = 0;
+  let grossProfit = 0;
+  let grossLoss = 0;
+
+  let consecutiveWins = 0;
+  let maxConsecutiveWins = 0;
+  let consecutiveLosses = 0;
+  let maxConsecutiveLosses = 0;
+
+  const monthlyPnL = {};
+  const tickerPnL = {};
+
+  for (const trade of closedTrades) {
+    const pnl = trade.pnl;
+    const month = trade.date.slice(0, 7); // YYYY-MM
+    monthlyPnL[month] = (monthlyPnL[month] || 0) + pnl;
+
+    tickerPnL[trade.ticker] = (tickerPnL[trade.ticker] || 0) + pnl;
+
+    if (pnl > 0) {
+      winCount++;
+      grossProfit += pnl;
+      consecutiveWins++;
+      consecutiveLosses = 0;
+      if (consecutiveWins > maxConsecutiveWins) maxConsecutiveWins = consecutiveWins;
+    } else if (pnl < 0) {
+      lossCount++;
+      grossLoss += Math.abs(pnl);
+      consecutiveLosses++;
+      consecutiveWins = 0;
+      if (consecutiveLosses > maxConsecutiveLosses) maxConsecutiveLosses = consecutiveLosses;
+    }
+  }
+
+  const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
+  const avgWin = winCount > 0 ? grossProfit / winCount : 0;
+  const avgLoss = lossCount > 0 ? grossLoss / lossCount : 0;
+  const payoffRatio = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 99.9 : 0);
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.9 : 0);
+
+  // MDD (Max Drawdown) 계산
+  let peak = -Infinity;
+  let maxDrawdown = 0;
+  let runningPnL = 0;
+
+  for (const trade of closedTrades) {
+    runningPnL += trade.pnl;
+    if (runningPnL > peak) peak = runningPnL;
+    const dd = peak > 0 ? ((peak - runningPnL) / peak) * 100 : 0;
+    if (dd > maxDrawdown) maxDrawdown = dd;
+  }
+
+  return {
+    totalTrades,
+    winCount,
+    lossCount,
+    winRate,
+    profitFactor,
+    avgWin,
+    avgLoss,
+    payoffRatio,
+    maxConsecutiveWins,
+    maxConsecutiveLosses,
+    maxDrawdown,
+    monthlyPnL,
+    tickerPnL
+  };
+}
+
+/**
+ * 매매 습관 분석 (보유기간별, 롱/숏별 성과 분석)
+ */
+export function calculateHabits(closedTrades = [], allTransactions = []) {
+  // 거래별 진입일과 청산일 매칭하여 보유일수 계산
+  const buckets = {
+    DAY: { label: '당일 매매 (데이)', count: 0, wins: 0, totalPnL: 0 },
+    SHORT_TERM: { label: '1~3일 (초단기)', count: 0, wins: 0, totalPnL: 0 },
+    MEDIUM_TERM: { label: '4~7일 (스윙)', count: 0, wins: 0, totalPnL: 0 },
+    MONTH: { label: '8~30일 (중기)', count: 0, wins: 0, totalPnL: 0 },
+    LONG_TERM: { label: '30일 이상 (장기)', count: 0, wins: 0, totalPnL: 0 }
+  };
+
+  const sideStats = {
+    LONG: { count: 0, wins: 0, totalPnL: 0 },
+    SHORT: { count: 0, wins: 0, totalPnL: 0 }
+  };
+
+  for (const trade of closedTrades) {
+    // 롱/숏 성과
+    const side = trade.side || 'LONG';
+    sideStats[side].count++;
+    sideStats[side].totalPnL += trade.pnl;
+    if (trade.pnl > 0) sideStats[side].wins++;
+
+    // 매수 거래 찾아 날짜 차이 계산
+    const relatedTx = allTransactions.find(t => t.ticker === trade.ticker && (t.type === 'BUY' || t.type === 'SHORT') && t.date <= trade.date);
+    let days = 0;
+    if (relatedTx) {
+      const d1 = new Date(relatedTx.date);
+      const d2 = new Date(trade.date);
+      days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+    }
+
+    let bKey = 'DAY';
+    if (days === 0) bKey = 'DAY';
+    else if (days <= 3) bKey = 'SHORT_TERM';
+    else if (days <= 7) bKey = 'MEDIUM_TERM';
+    else if (days <= 30) bKey = 'MONTH';
+    else bKey = 'LONG_TERM';
+
+    buckets[bKey].count++;
+    buckets[bKey].totalPnL += trade.pnl;
+    if (trade.pnl > 0) buckets[bKey].wins++;
+  }
+
+  // 각 버킷별 승률 계산
+  for (const key in buckets) {
+    const b = buckets[key];
+    b.winRate = b.count > 0 ? (b.wins / b.count) * 100 : 0;
+  }
+  for (const key in sideStats) {
+    const s = sideStats[key];
+    s.winRate = s.count > 0 ? (s.wins / s.count) * 100 : 0;
+  }
+
+  return {
+    holdingPeriods: buckets,
+    sides: sideStats
+  };
+}
+
+/**
+ * 숫자 및 통화 포맷팅 헬퍼
+ */
+export function formatUSD(val, withSign = false) {
+  if (val === null || val === undefined || isNaN(val)) return '$0.00';
+  const num = parseFloat(val);
+  const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (withSign && num > 0) return `+$${formatted}`;
+  if (num < 0) return `-$${formatted}`;
+  return `$${formatted}`;
+}
+
+export function formatKRW(valUSD, fxRate = 1420) {
+  if (valUSD === null || valUSD === undefined || isNaN(valUSD)) return '₩0';
+  const krw = Math.round(valUSD * fxRate);
+  return `₩${krw.toLocaleString('ko-KR')}`;
+}
+
+export function formatPercent(val, withSign = true) {
+  if (val === null || val === undefined || isNaN(val)) return '0.00%';
+  const num = parseFloat(val);
+  const formatted = Math.abs(num).toFixed(2);
+  if (withSign && num > 0) return `+${formatted}%`;
+  if (num < 0) return `-${formatted}%`;
+  return `${formatted}%`;
+}
+
+export function formatQty(val) {
+  if (!val || isNaN(val)) return '0';
+  return parseFloat(val).toLocaleString('en-US', { maximumFractionDigits: 4 });
+}
