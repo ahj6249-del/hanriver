@@ -444,9 +444,9 @@
         <section id="view-settings" class="view-section">
           <div class="card" style="margin-bottom: 20px;">
             <h3 class="card-title">브랜드 및 화면 설정</h3>
-            <div class="modal-body" style="padding: 16px 0;">
+            <form id="appearance-settings" class="modal-body" style="padding: 16px 0;">
               <div class="form-group">
-                <label>수익 / 손실 색상 체계</label>
+                <label for="setting-color-mode">수익 / 손실 색상 체계</label>
                 <select id="setting-color-mode" class="form-select">
                   <option value="global">글로벌 표준 (수익: 에메랄드 녹색 / 손실: 빨간색)</option>
                   <option value="korean">한국형 (수익: 빨간색 / 손실: 파란색)</option>
@@ -454,25 +454,26 @@
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>연간 목표 수익금 (USD $)</label>
-                  <input type="number" id="setting-target-profit" class="form-input" value="20000">
+                  <label for="setting-target-profit">연간 목표 수익금 (USD $)</label>
+                  <input type="number" required step="any" min="0.01" id="setting-target-profit" class="form-input" value="20000">
                 </div>
                 <div class="form-group">
-                  <label>연간 목표 수익률 (%)</label>
-                  <input type="number" id="setting-target-rate" class="form-input" value="25">
+                  <label for="setting-target-rate">연간 목표 수익률 (%)</label>
+                  <input type="number" required step="any" id="setting-target-rate" class="form-input" value="25">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>최대 허용 낙폭 (MDD %)</label>
-                  <input type="number" id="setting-max-mdd" class="form-input" value="15">
+                  <label for="setting-max-mdd">최대 허용 낙폭 (MDD %)</label>
+                  <input type="number" required step="any" min="0" max="100" id="setting-max-mdd" class="form-input" value="15">
                 </div>
                 <div class="form-group">
-                  <label>원/달러 환율 (KRW)</label>
-                  <input type="number" id="setting-fx-rate" class="form-input" value="1425">
+                  <label for="setting-fx-rate">원/달러 환율 (KRW)</label>
+                  <input type="number" required step="any" min="0.01" id="setting-fx-rate" class="form-input" value="1425">
                 </div>
               </div>
-            </div>
+              <button type="submit" class="btn-primary" style="align-self: flex-start;">변경 적용</button>
+            </form>
           </div>
 
           <div class="card" style="margin-bottom: 20px; border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.03);">
@@ -519,7 +520,7 @@
                 <label>Twelve Data API Key</label>
                 <input type="password" id="setting-twelve-key" class="form-input" placeholder="Twelve Data 무료 API 키 입력">
               </div>
-              <button class="btn-secondary" id="btn-save-settings" style="align-self: flex-start;">일반 설정 저장</button>
+              <button class="btn-secondary" id="btn-save-twelve-key" style="align-self: flex-start;">Twelve Data 키 저장</button>
             </div>
           </div>
 

@@ -1148,26 +1148,34 @@ dialog::backdrop {
 .stock-view-actions { justify-content: space-between; margin-block: 8px; }
 #watchlist-layout[hidden] { display: none; }
 #watchlist-layout button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
-.stock-search-results.stock-results-list { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.stock-search-results.stock-results-list { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 .stock-results-list .stock-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "title quote" "name actions";
-  gap: 4px 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) 44px;
+  gap: 6px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 0 6px 0 10px;
 }
-.stock-results-list .stock-result-title { grid-area: title; }
-.stock-results-list .watch-toggle { margin-left: 0; }
-.stock-results-list .stock-result-name { grid-area: name; font-size: 12px; }
-.stock-results-list .stock-result-quote { grid-area: quote; justify-content: flex-end; text-align: right; }
-.stock-results-list .stock-result-actions { grid-area: actions; justify-content: flex-end; margin-top: 0; }
-@media (max-width: 540px) {
-  .stock-results-list .stock-result {
-    grid-template-areas: "title quote" "name quote" "actions actions";
-  }
-  .stock-results-list .stock-result-quote { flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; }
+.stock-results-list .stock-result-title { display: contents; }
+.stock-results-list .stock-result-title > strong,
+.stock-results-list .stock-result-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.stock-results-list .stock-result-title > .muted { display: none; }
+.stock-results-list .watch-toggle { grid-column: 4; grid-row: 1; margin: 0; border-color: transparent; }
+.stock-results-list .stock-result-name { grid-column: 2; grid-row: 1; font-size: 12px; }
+.stock-results-list .stock-result-quote {
+  grid-column: 3;
+  grid-row: 1;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  text-align: right;
+  font-size: 12px;
+}
+.stock-results-list .stock-result-quote > .muted { display: none; }
 
 #holdings-layout { display: none; }
 @media (max-width: 768px) {

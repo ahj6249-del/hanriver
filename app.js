@@ -837,7 +837,8 @@ async function renderStocks() {
   const query = searchForm.querySelector('input').value.trim();
   searchForm.hidden = watchOnly;
   const listLayout = state.settings.watchlistLayout === 'list';
-  container.classList.toggle('stock-results-list', watchOnly && listLayout);
+  const compactWatchlist = watchOnly && listLayout;
+  container.classList.toggle('stock-results-list', compactWatchlist);
   document.getElementById('watchlist-layout').hidden = !watchOnly;
   document.getElementById('watch-layout-card').setAttribute('aria-pressed', String(!listLayout));
   document.getElementById('watch-layout-list').setAttribute('aria-pressed', String(listLayout));
@@ -879,15 +880,15 @@ async function renderStocks() {
           <button type="button" class="btn-secondary watch-toggle" data-ticker="${ticker}" aria-label="${ticker} 관심종목" aria-pressed="${isWatched}">${isWatched ? '★' : '☆'}</button>
         </div>
         <div class="stock-result-name">${escapeHTML(stock.name)}</div>
-        <div class="stock-result-quote">
+        <div class="stock-result-quote" title="${escapeHTML(quote ? quoteLabel(quote) : '시세 없음')}">
           <strong>${quote ? fmtMoney(quote.price) : '—'}</strong>
           <span class="muted">${escapeHTML(quote ? quoteLabel(quote) : '시세 없음')}</span>
         </div>
-        <div class="stock-result-actions">
+        ${compactWatchlist ? '' : `<div class="stock-result-actions">
           <button type="button" class="btn-primary btn-quick-buy" data-ticker="${ticker}">매수 기록</button>
           <button type="button" class="btn-secondary btn-quick-tv" data-ticker="${ticker}">차트</button>
           <button type="button" class="btn-secondary btn-quick-quote" data-ticker="${ticker}">시세 조회</button>
-        </div>
+        </div>`}
       </article>`;
   }).join('');
 
@@ -952,13 +953,13 @@ function renderSettings() {
   const s = state.settings;
   const setVal = (id, val) => {
     const el = document.getElementById(id);
-    if (el) el.value = val || '';
+    if (el) el.value = val ?? '';
   };
 
   setVal('setting-color-mode', s.colorMode || 'global');
   setVal('setting-target-profit', s.targetProfitUSD || 20000);
-  setVal('setting-target-rate', s.targetReturnPercent || 25);
-  setVal('setting-max-mdd', s.maxAllowedMDD || 15);
+  setVal('setting-target-rate', s.targetReturnPercent ?? 25);
+  setVal('setting-max-mdd', s.maxAllowedMDD ?? 15);
   setVal('setting-fx-rate', s.fxRate || 1425);
   setVal('setting-twelve-key', s.apiKeyTwelveData || '');
   setVal('setting-finnhub-key', s.apiKeyFinnhub || '');
@@ -1796,21 +1797,32 @@ function initEvents() {
     }
   });
 
-  // 설정 저장
-  document.getElementById('btn-save-settings')?.addEventListener('click', () => {
-    const s = {
-      ...state.settings,
+  async function applySettings(changes, message) {
+    try {
+      saveSettings({ ...getSettings(), ...changes });
+    } catch {
+      showToast('설정을 저장하지 못했습니다.');
+      return;
+    }
+    await refreshState();
+    showToast(message);
+  }
+
+  document.getElementById('appearance-settings').addEventListener('submit', event => {
+    event.preventDefault();
+    applySettings({
       colorMode: document.getElementById('setting-color-mode').value,
-      targetProfitUSD: parseFloat(document.getElementById('setting-target-profit').value) || 20000,
-      targetReturnPercent: parseFloat(document.getElementById('setting-target-rate').value) || 25,
-      maxAllowedMDD: parseFloat(document.getElementById('setting-max-mdd').value) || 15,
-      fxRate: parseFloat(document.getElementById('setting-fx-rate').value) || 1425,
-      apiKeyTwelveData: document.getElementById('setting-twelve-key').value.trim(),
-      apiKeyFinnhub: document.getElementById('setting-finnhub-key').value.trim()
-    };
-    saveSettings(s);
-    showToast('일반 설정이 저장되었습니다.');
-    refreshState();
+      targetProfitUSD: document.getElementById('setting-target-profit').valueAsNumber,
+      targetReturnPercent: document.getElementById('setting-target-rate').valueAsNumber,
+      maxAllowedMDD: document.getElementById('setting-max-mdd').valueAsNumber,
+      fxRate: document.getElementById('setting-fx-rate').valueAsNumber
+    }, '화면 설정을 적용했습니다.');
+  });
+
+  document.getElementById('btn-save-twelve-key').addEventListener('click', () => {
+    applySettings({
+      apiKeyTwelveData: document.getElementById('setting-twelve-key').value.trim()
+    }, 'Twelve Data 키 설정을 저장했습니다.');
   });
 
   // Finnhub 키 검증 및 저장 버튼
