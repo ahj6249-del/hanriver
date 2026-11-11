@@ -1126,3 +1126,18 @@ dialog::backdrop {
   .stock-search-form button { padding-inline: 10px; }
   #tx-details .form-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+.stock-search-form[hidden] { display: none; }
+.stock-modes, .journal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.stock-modes button[aria-pressed="true"] { border-color: var(--accent-emerald); color: var(--accent-emerald); }
+.watch-toggle { margin-left: auto; min-width: 44px; min-height: 44px; padding: 0; font-size: 21px; }
+.watch-toggle[aria-pressed="true"] { color: #fbbf24; }
+.trade-review { display: grid; gap: 6px; font-size: 12px; margin-bottom: 6px; }
+.trade-review:empty, .journal-trade-context:empty { display: none; }
+.trade-review-snippet { overflow-wrap: anywhere; color: var(--text-secondary); }
+.journal-trade-context { padding: 8px 10px; margin-bottom: 8px; background: var(--bg-input); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.demo-mode .btn-edit-journal { display: none; }
+#toast .btn-secondary { color: white; white-space: nowrap; }
+@media (max-width: 860px) {
+  #toast { bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 10px); left: 12px; right: 12px; justify-content: space-between; padding: 8px 12px; }
+}

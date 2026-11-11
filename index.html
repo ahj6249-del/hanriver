@@ -412,9 +412,12 @@
         <!-- 7. 종목 검색 및 시세 뷰 -->
         <section id="view-stocks" class="view-section">
           <div class="card stock-search-panel">
-            <label class="card-title" for="stock-search-input">미국 주식 · ETF 검색</label>
+            <div class="stock-modes" role="group" aria-label="종목 보기">
+              <button type="button" class="btn-secondary" id="stock-mode-search" aria-pressed="true">종목 검색</button>
+              <button type="button" class="btn-secondary" id="stock-mode-watch" aria-pressed="false">관심종목</button>
+            </div>
             <form id="stock-search-form" class="stock-search-form">
-              <input type="search" id="stock-search-input" class="form-input" placeholder="티커 또는 회사명 (예: VOO, Costco, 브로드컴)" autocomplete="off">
+              <input type="search" id="stock-search-input" aria-label="미국 주식·ETF 검색" class="form-input" placeholder="티커 또는 회사명 (예: VOO, Costco, 브로드컴)" autocomplete="off">
               <button class="btn-primary" type="submit">검색</button>
             </form>
             <p id="stock-search-status" class="muted" role="status"></p>
@@ -659,6 +662,8 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="journal-id">
+        <input type="hidden" id="journal-transaction-id">
+        <p id="journal-trade-context" class="journal-trade-context"></p>
         <div class="form-row">
           <div class="form-group">
             <label for="journal-date">날짜 *</label>
@@ -676,7 +681,7 @@
             <input type="text" id="journal-buy-reason" class="form-input" placeholder="진입 당시 근거">
           </div>
           <div class="form-group">
-            <label>매도 이유</label>
+            <label for="journal-sell-reason">매도 이유</label>
             <input type="text" id="journal-sell-reason" class="form-input" placeholder="청산 당시 근거">
           </div>
         </div>

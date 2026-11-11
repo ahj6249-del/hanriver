@@ -65,6 +65,7 @@ function escapeHTML(value) {
 const state = {
   currentView: 'dashboard',
   accountId: DEFAULT_ACCOUNT,
+  watchOnly: false,
   currency: 'USD', // 'USD' or 'KRW'
   transactions: [],
   journalNotes: [],
@@ -88,12 +89,25 @@ function fmtMoney(usdVal, withSign = false) {
 }
 
 // 헬퍼: 토스트 메시지
-function showToast(msg, duration = 3000) {
+let toastTimer;
+function showToast(msg, duration = 3000, action) {
   const toast = document.getElementById('toast');
   if (!toast) return;
   toast.textContent = msg;
+  if (action) {
+    const button = document.createElement('button');
+    button.className = 'btn-secondary';
+    button.type = 'button';
+    button.textContent = '복기 쓰기';
+    button.onclick = () => {
+      toast.style.display = 'none';
+      action();
+    };
+    toast.append(button);
+  }
   toast.style.display = 'flex';
-  setTimeout(() => {
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
     toast.style.display = 'none';
   }, duration);
 }
@@ -429,6 +443,25 @@ function settlement(t) {
   }
 }
 
+function tradeSummary(trade) {
+  const closed = state.portfolio.closedTrades.find(item => item.id === trade.id);
+  const details = [
+    `${trade.ticker} ${TX_TYPE_LABELS[trade.type]}`,
+    `${formatQty(closed?.qty ?? trade.qty)}주 · ${fmtMoney(trade.price)}`
+  ];
+  if (closed) details.push(`실현손익 ${fmtMoney(closed.pnl, true)}`);
+  return details.join(' · ');
+}
+
+function linkedNoteMarkup(trade, notes, closedTrades) {
+  const note = notes.get(trade.id);
+  const closed = closedTrades.get(trade.id);
+  const reason = note && (note.sellReason || note.buyReason || note.idea || note.improvements);
+  return `${closed ? `<div class="trade-review-pnl ${closed.pnl >= 0 ? 'profit' : 'loss'}">실현손익 ${fmtMoney(closed.pnl, true)}</div>` : ''}
+    ${reason ? `<div class="trade-review-snippet">${escapeHTML(reason)}</div>` : ''}
+    ${trade.ticker && state.accountId !== DEMO_ACCOUNT ? `<button type="button" class="btn-secondary btn-tx-review" data-id="${escapeHTML(trade.id)}">${note ? '복기 보기·수정' : '복기 쓰기'}</button>` : ''}`;
+}
+
 function renderTransactions() {
   const tbody = document.getElementById('tx-tbody');
   if (!tbody) return;
@@ -450,6 +483,9 @@ function renderTransactions() {
     return;
   }
 
+  const notesByTrade = new Map(state.journalNotes.filter(note => note.transactionId)
+    .map(note => [note.transactionId, note]));
+  const closedById = new Map(state.portfolio.closedTrades.map(trade => [trade.id, trade]));
   tbody.innerHTML = list.map(t => {
         const badgeClass = {
       BUY: 'badge-buy',
@@ -478,6 +514,7 @@ function renderTransactions() {
         <td style="text-align: right;" class="tabular"><strong>${fmtMoney(totalSettle)}</strong></td>
         <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${escapeHTML(t.memo || '-')}</td>
         <td style="text-align: center;">
+          <div class="trade-review">${linkedNoteMarkup(t, notesByTrade, closedById)}</div>
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn-secondary btn-tx-edit" data-id="${escapeHTML(t.id)}" style="padding: 3px 8px; font-size: 11px;">수정</button>
             <button class="btn-secondary btn-tx-del" data-id="${escapeHTML(t.id)}" style="padding: 3px 8px; font-size: 11px; color: #ef4444;">삭제</button>
@@ -511,7 +548,7 @@ function renderTransactions() {
             <div class="tx-card-left">
               <span class="badge ${badgeClass}">${escapeHTML(TX_TYPE_LABELS[t.type] || t.type)}</span>
               <strong class="tx-ticker">${escapeHTML(t.ticker || '-')}</strong>
-              <span class="tx-name">${t.name || ''}</span>
+              <span class="tx-name">${escapeHTML(t.name || '')}</span>
             </div>
             <span class="tx-date tabular" style="font-size: 11px; color: var(--text-muted);">${t.date ? t.date.slice(0, 16).replace('T', ' ') : '-'}</span>
           </div>
@@ -523,6 +560,7 @@ function renderTransactions() {
             </div>
             ${t.memo ? `<div class="tx-memo">💬 ${escapeHTML(t.memo)}</div>` : ''}
           </div>
+          <div class="trade-review">${linkedNoteMarkup(t, notesByTrade, closedById)}</div>
           <div class="tx-card-actions">
             <button class="btn-secondary btn-tx-edit" data-id="${escapeHTML(t.id)}">수정</button>
             <button class="btn-secondary btn-tx-del" data-id="${escapeHTML(t.id)}" style="color: #ef4444;">삭제</button>
@@ -545,6 +583,13 @@ function renderTransactions() {
         showToast('거래 기록이 삭제되었습니다.');
         refreshState();
       }
+    };
+  });
+
+  document.querySelectorAll('.btn-tx-review').forEach(button => {
+    button.onclick = () => {
+      const trade = state.transactions.find(item => item.id === button.dataset.id);
+      if (trade) openJournalModal(trade);
     };
   });
 
@@ -687,7 +732,10 @@ function renderJournal() {
     return;
   }
 
+  const transactionsById = new Map(state.transactions.map(trade => [trade.id, trade]));
   container.innerHTML = notes.map(n => {
+    const trade = transactionsById.get(n.transactionId);
+    const context = trade ? tradeSummary(trade) : (n.transactionId ? '연결된 거래가 장부에 없습니다.' : '');
     const stars = '⭐'.repeat(Math.max(0, Math.min(5, Number(n.confidence) || 3)));
     const tags = (n.tags || []).map(t => `<span class="badge" style="background: rgba(59,130,246,0.15); color: #60a5fa;">#${escapeHTML(t.trim())}</span>`).join(' ');
 
@@ -704,8 +752,10 @@ function renderJournal() {
               ${tags}
             </div>
           </div>
-          <button class="btn-secondary btn-del-journal" data-id="${escapeHTML(n.id)}" style="padding: 4px 10px; font-size: 11px; color: #ef4444;">삭제</button>
+          <div class="journal-actions"><button type="button" class="btn-secondary btn-edit-journal" data-id="${escapeHTML(n.id)}">수정</button>
+          <button class="btn-secondary btn-del-journal" data-id="${escapeHTML(n.id)}" style="padding: 4px 10px; font-size: 11px; color: #ef4444;">삭제</button></div>
         </div>
+        ${context ? `<p class="journal-trade-context">${escapeHTML(context)}</p>` : ''}
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; font-size: 13px;">
           ${n.buyReason ? `<div><span class="muted" style="font-size: 11.5px; display:block;">매수 이유</span><strong>${escapeHTML(n.buyReason)}</strong></div>` : ''}
@@ -738,6 +788,13 @@ function renderJournal() {
     `;
   }).join('');
 
+  container.querySelectorAll('.btn-edit-journal').forEach(button => {
+    button.onclick = () => {
+      const note = state.journalNotes.find(item => item.id === button.dataset.id);
+      if (note) openJournalModal(transactionsById.get(note.transactionId), note);
+    };
+  });
+
   container.querySelectorAll('.btn-del-journal').forEach(b => {
     b.onclick = async () => {
       if (state.accountId === DEMO_ACCOUNT) return;
@@ -758,28 +815,39 @@ let stockSearchVersion = 0;
 async function renderStocks() {
   const container = document.getElementById('stock-search-results');
   const status = document.getElementById('stock-search-status');
-  const query = document.getElementById('stock-search-input').value.trim();
+  const searchForm = document.getElementById('stock-search-form');
+  const watchlist = Array.isArray(state.settings.watchlist) ? state.settings.watchlist.filter(stock =>
+    stock && typeof stock.ticker === 'string' && TICKER_PATTERN.test(stock.ticker)) : [];
+  const watched = new Set(watchlist.map(stock => stock.ticker));
+  const watchOnly = state.watchOnly;
+  const query = searchForm.querySelector('input').value.trim();
+  searchForm.hidden = watchOnly;
+  document.getElementById('stock-mode-search').setAttribute('aria-pressed', String(!watchOnly));
+  document.getElementById('stock-mode-watch').setAttribute('aria-pressed', String(watchOnly));
   const version = ++stockSearchVersion;
-  if (query) status.textContent = '종목 검색 중…';
-  const { matches, directoryAvailable } = query ? await searchStock(query) :
+  if (query && !watchOnly) status.textContent = '종목 검색 중…';
+  const { matches, directoryAvailable } = query && !watchOnly ? await searchStock(query) :
     { matches: STOCK_DATABASE.slice(0, 6), directoryAvailable: true };
   if (version !== stockSearchVersion || query !== document.getElementById('stock-search-input').value.trim()) return;
 
   const manualTicker = query.toUpperCase();
   const canUseTicker = TICKER_PATTERN.test(manualTicker) && !matches.some(stock => stock.ticker === manualTicker ||
     stock.ticker.replaceAll('.', '-') === manualTicker);
-  const results = canUseTicker ? [...matches, { ticker: manualTicker, name: '티커 직접 입력' }] : matches;
-  status.textContent = !directoryAvailable ? '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.' :
+  const results = watchOnly ? watchlist : canUseTicker ? [...matches, { ticker: manualTicker, name: '티커 직접 입력' }] : matches;
+  status.textContent = watchOnly ? (watchlist.length ? '' : '검색 결과에서 별표를 눌러 관심종목을 추가할 수 있습니다.') : !directoryAvailable ? '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.' :
     !query ? '티커나 회사명을 입력하면 다른 종목도 찾을 수 있습니다.' :
     !matches.length ? '상장 목록에서 일치하는 종목을 찾지 못했습니다.' : '';
 
   container.innerHTML = results.map(stock => {
     const ticker = escapeHTML(stock.ticker);
     const quote = state.prices[stock.ticker];
+    const isWatched = watched.has(stock.ticker);
     const market = [stock.exchange, stock.etf ? 'ETF' : ''].filter(Boolean).join(' · ');
     return `
       <article class="card stock-result">
-        <div class="stock-result-title"><strong>${ticker}</strong><span class="muted">${escapeHTML(market)}</span></div>
+        <div class="stock-result-title"><strong>${ticker}</strong><span class="muted">${escapeHTML(market)}</span>
+          <button type="button" class="btn-secondary watch-toggle" data-ticker="${ticker}" aria-label="${ticker} 관심종목" aria-pressed="${isWatched}">${isWatched ? '★' : '☆'}</button>
+        </div>
         <div class="stock-result-name">${escapeHTML(stock.name)}</div>
         <div class="stock-result-quote">
           <strong>${quote ? fmtMoney(quote.price) : '—'}</strong>
@@ -792,6 +860,30 @@ async function renderStocks() {
         </div>
       </article>`;
   }).join('');
+
+  for (const button of container.querySelectorAll('.watch-toggle')) {
+    button.onclick = async () => {
+      const stock = results.find(item => item.ticker === button.dataset.ticker);
+      const settings = getSettings();
+      const saved = Array.isArray(settings.watchlist) ? settings.watchlist.filter(Boolean) : [];
+      const exists = saved.some(item => item.ticker === stock.ticker);
+      settings.watchlist = exists ? saved.filter(item => item.ticker !== stock.ticker) : [
+        ...saved, { ticker: stock.ticker, name: stock.name === '티커 직접 입력' ? '' : stock.name,
+          exchange: stock.exchange, etf: stock.etf }
+      ];
+      try {
+        saveSettings(settings);
+      } catch {
+        showToast('관심종목을 저장하지 못했습니다.');
+        return;
+      }
+      state.settings = settings;
+      await renderStocks();
+      const toggles = [...container.querySelectorAll('.watch-toggle')];
+      (toggles.find(item => item.dataset.ticker === stock.ticker) ||
+        toggles[0] || document.getElementById('stock-mode-watch')).focus();
+    };
+  }
 
   for (const button of container.querySelectorAll('.btn-quick-buy')) {
     button.onclick = () => {
@@ -1293,21 +1385,30 @@ function localDateTime() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-function openJournalModal() {
-  if (state.accountId === DEMO_ACCOUNT) return;
+function openJournalModal(trade, existingNote) {
+  if (state.accountId === DEMO_ACCOUNT || (trade && (trade.accountId || DEFAULT_ACCOUNT) !== state.accountId)) return;
   const modal = document.getElementById('modal-journal');
-  if (!modal) return;
-  document.getElementById('journal-id').value = '';
-  document.getElementById('journal-date').value = localDateTime().slice(0, 10);
-  document.getElementById('journal-ticker').value = '';
-  document.getElementById('journal-buy-reason').value = '';
-  document.getElementById('journal-sell-reason').value = '';
-  document.getElementById('journal-idea').value = '';
-  document.getElementById('journal-confidence').value = '3';
-  document.getElementById('journal-emotion').value = '';
-  document.getElementById('journal-pros').value = '';
-  document.getElementById('journal-improvements').value = '';
-  document.getElementById('journal-tags').value = '';
+  const note = existingNote || (trade && state.journalNotes.find(item => item.transactionId === trade.id));
+  const fields = {
+    id: note?.id,
+    'transaction-id': trade?.id || note?.transactionId,
+    date: note?.date || trade?.date.slice(0, 10) || localDateTime().slice(0, 10),
+    ticker: trade?.ticker || note?.ticker,
+    'buy-reason': note?.buyReason,
+    'sell-reason': note?.sellReason,
+    idea: note?.idea,
+    confidence: note?.confidence || 3,
+    emotion: note?.emotion,
+    pros: note?.pros,
+    improvements: note?.improvements,
+    tags: note?.tags?.join(', ')
+  };
+  for (const [name, value] of Object.entries(fields)) {
+    document.getElementById('journal-' + name).value = value ?? '';
+  }
+  document.getElementById('journal-ticker').readOnly = Boolean(trade);
+  document.getElementById('modal-journal-title').textContent = note ? '복기 노트 수정' : '복기 노트 작성';
+  document.getElementById('journal-trade-context').textContent = trade ? tradeSummary(trade) : '';
   modal.showModal();
 }
 
@@ -1497,12 +1598,14 @@ function initEvents() {
       saveButton.disabled = false;
     }
     document.getElementById('modal-transaction')?.close();
-    showToast(`${ticker ? ticker + ' ' : ''}${TX_TYPE_LABELS[type]} 기록을 저장했습니다.`);
-    refreshState();
+    await refreshState();
+    const canReview = !id && [TX_TYPES.SELL, TX_TYPES.COVER].includes(type);
+    showToast(`${ticker ? ticker + ' ' : ''}${TX_TYPE_LABELS[type]} 기록을 저장했습니다.`,
+      canReview ? 8000 : 3000, canReview ? () => openJournalModal(txItem) : undefined);
   });
 
   // 복기 노트 모달 제어
-  document.getElementById('btn-new-journal-note')?.addEventListener('click', openJournalModal);
+  document.getElementById('btn-new-journal-note')?.addEventListener('click', () => openJournalModal());
   document.getElementById('btn-close-journal-modal')?.addEventListener('click', () => document.getElementById('modal-journal')?.close());
   document.getElementById('btn-cancel-journal')?.addEventListener('click', () => document.getElementById('modal-journal')?.close());
 
@@ -1510,7 +1613,11 @@ function initEvents() {
     e.preventDefault();
     const id = document.getElementById('journal-id').value;
     if (state.accountId === DEMO_ACCOUNT) return;
+    const transactionId = document.getElementById('journal-transaction-id').value;
+    const previous = state.journalNotes.find(item => item.id === id);
     const note = {
+      ...previous,
+      transactionId: transactionId || undefined,
       accountId: state.accountId,
       id: id || undefined,
       date: document.getElementById('journal-date').value,
@@ -1525,7 +1632,17 @@ function initEvents() {
       tags: document.getElementById('journal-tags').value.split(',').map(s => s.trim()).filter(Boolean)
     };
 
-    await saveJournalNote(note);
+    const saveButton = document.getElementById('btn-save-journal');
+    if (saveButton.disabled) return;
+    saveButton.disabled = true;
+    try {
+      await saveJournalNote(note);
+    } catch {
+      showToast('복기 노트를 저장하지 못했습니다.');
+      return;
+    } finally {
+      saveButton.disabled = false;
+    }
     document.getElementById('modal-journal')?.close();
     showToast('투자 복기 노트가 저장되었습니다.');
     refreshState();
@@ -1703,6 +1820,12 @@ function initEvents() {
   document.getElementById('btn-header-settings')?.addEventListener('click', () => switchView('settings'));
 
   // 종목 검색
+  for (const id of ['stock-mode-search', 'stock-mode-watch']) {
+    document.getElementById(id).addEventListener('click', () => {
+      state.watchOnly = id === 'stock-mode-watch';
+      renderStocks();
+    });
+  }
   document.getElementById('stock-search-form').addEventListener('submit', event => {
     event.preventDefault();
     renderStocks();
