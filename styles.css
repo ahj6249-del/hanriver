@@ -95,7 +95,8 @@ body {
   gap: 12px;
 }
 
-.brand-logo-svg {
+.brand-logo {
+  border-radius: 9px;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
