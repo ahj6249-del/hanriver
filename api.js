@@ -25,18 +25,21 @@ const LS_PRICES_CACHE = 'hanriver_prices_cache_v1';
 const LS_MANUAL_PRICES = 'hanriver_manual_prices_v1';
 
 // 캐시 불러오기
-export function getStoredPrices() {
+export function getStoredPrices(includeExamples = false) {
   const prices = {};
   // 1. 기본 마스터 데이터
-  for (const s of STOCK_DATABASE) {
+  for (const s of includeExamples ? STOCK_DATABASE : []) {
     prices[s.ticker] = {
       price: s.price,
       changePercent: s.changePercent,
       previousClose: s.previousClose,
       name: s.name,
-      updatedAt: '기본 시세 데이터'
+      source: '예시 시세',
+      updatedAt: '예시 시세'
     };
   }
+
+  if (includeExamples) return prices;
 
   // 2. 캐시된 API 시세
   try {
@@ -63,7 +66,8 @@ export function saveManualPrice(ticker, price, changePercent = 0) {
     price: parseFloat(price),
     changePercent: parseFloat(changePercent) || 0,
     previousClose: parseFloat(price) / (1 + (parseFloat(changePercent) || 0) / 100),
-    updatedAt: new Date().toLocaleTimeString('ko-KR') + ' (수동 입력)'
+    source: '수동 입력',
+    updatedAt: new Date().toISOString()
   };
   localStorage.setItem(LS_MANUAL_PRICES, JSON.stringify(manual));
 }
@@ -138,10 +142,11 @@ export async function fetchStockQuote(ticker, settings = {}) {
             price: data.c,
             changePercent: data.dp || 0,
             previousClose: data.pc || data.c,
-            updatedAt: new Date().toLocaleTimeString('ko-KR') + ' (Finnhub 실시간)'
+            source: 'Finnhub',
+            updatedAt: Number(data.t) > 0 ? new Date(Number(data.t) * 1000).toISOString() : null
           };
           updatePriceCache(cleanTicker, quote);
-          return quote;
+          return { ...quote, refreshed: true };
         }
       }
     } catch (err) {
@@ -163,10 +168,11 @@ export async function fetchStockQuote(ticker, settings = {}) {
             price: cur,
             changePercent: chgPct,
             previousClose: prev,
-            updatedAt: new Date().toLocaleTimeString('ko-KR') + ' (Twelve Data)'
+            source: 'Twelve Data',
+            updatedAt: Number(data.timestamp) > 0 ? new Date(Number(data.timestamp) * 1000).toISOString() : null
           };
           updatePriceCache(cleanTicker, quote);
-          return quote;
+          return { ...quote, refreshed: true };
         }
       }
     } catch (err) {

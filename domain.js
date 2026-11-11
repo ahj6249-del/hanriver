@@ -33,7 +33,8 @@ export const TX_TYPE_LABELS = {
  */
 export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate = 1420) {
   // 날짜/시간 순 정렬 (오름차순)
-  const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...transactions].sort((a, b) => a.date.replace('T', ' ').localeCompare(b.date.replace('T', ' ')) ||
+    (a.createdAt || '').localeCompare(b.createdAt || ''));
 
   let cash = 0;
   let totalDeposits = 0;
@@ -41,12 +42,14 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
   let totalDividends = 0;
   let totalFees = 0;
   let totalRealizedPnL = 0;
+  let standaloneFees = 0;
 
   // 종목별 포지션: ticker -> { qty: 0, costBasis: 0, shortQty: 0, shortPrice: 0, realizedPnL: 0, totalFees: 0, name: '' }
-  const positions = {};
+  const positions = Object.create(null);
 
   // 완료된 포지션(거래)별 기록 (성과 분석용)
   const closedTrades = [];
+  const invalidCloseIds = [];
 
   for (const tx of sorted) {
     const type = tx.type;
@@ -91,15 +94,17 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
       }
       case TX_TYPES.DIVIDEND: {
         const amt = parseFloat(tx.amount || (price * qty)) || 0;
-        const netDiv = amt - tax;
+        const netDiv = amt - totalFee;
         cash += netDiv;
         totalDividends += netDiv;
         if (pos) pos.realizedPnL += netDiv;
         break;
       }
       case TX_TYPES.FEE: {
-        const amt = parseFloat(tx.amount || fee) || 0;
+        const amt = parseFloat(tx.amount || price || fee) || 0;
         cash -= amt;
+        standaloneFees += amt;
+        totalFees += amt - totalFee;
         break;
       }
       case TX_TYPES.BUY: {
@@ -117,17 +122,24 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
         break;
       }
       case TX_TYPES.SELL: {
-        if (!pos || pos.qty <= 0) break;
+        if (!pos || qty <= 0 || qty - pos.qty > 1e-8) {
+          invalidCloseIds.push(tx.id);
+          totalFees -= totalFee;
+          if (pos) pos.totalFees -= totalFee;
+          break;
+        }
         pos.tradeCount++;
 
         const sellQty = Math.min(qty, pos.qty);
         // 매도 순 수입 = 매도가 * 수량 - 수수료 - 세금
         const proceeds = (price * sellQty) - totalFee;
-        const cost = pos.costBasis * sellQty;
+        const entryPrice = pos.costBasis;
+        const cost = entryPrice * sellQty;
         const tradePnL = proceeds - cost;
 
         cash += proceeds;
-        pos.qty -= sellQty;
+        pos.qty = Math.max(0, pos.qty - sellQty);
+        if (pos.qty < 1e-8) pos.qty = 0;
         pos.realizedPnL += tradePnL;
         totalRealizedPnL += tradePnL;
 
@@ -142,7 +154,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
           name: pos.name,
           side: 'LONG',
           qty: sellQty,
-          entryPrice: pos.costBasis,
+          entryPrice,
           exitPrice: price,
           pnl: tradePnL,
           pnlPercent: cost > 0 ? (tradePnL / cost) * 100 : 0,
@@ -159,22 +171,29 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
           pos.tradeCount++;
           const prevShortVal = pos.shortPrice * pos.shortQty;
           pos.shortQty += qty;
-          pos.shortPrice = pos.shortQty > 0 ? (prevShortVal + (price * qty)) / pos.shortQty : 0;
+          pos.shortPrice = pos.shortQty > 0 ? (prevShortVal + proceeds) / pos.shortQty : 0;
         }
         break;
       }
       case TX_TYPES.COVER: {
         // 숏커버(환매수): 현금 지출 = 주가 * 수량 + 수수료
-        if (!pos || pos.shortQty <= 0) break;
+        if (!pos || qty <= 0 || qty - pos.shortQty > 1e-8) {
+          invalidCloseIds.push(tx.id);
+          totalFees -= totalFee;
+          if (pos) pos.totalFees -= totalFee;
+          break;
+        }
         pos.tradeCount++;
 
         const coverQty = Math.min(qty, pos.shortQty);
         const costToCover = (price * coverQty) + totalFee;
-        const shortVal = pos.shortPrice * coverQty;
+        const entryPrice = pos.shortPrice;
+        const shortVal = entryPrice * coverQty;
         const tradePnL = shortVal - costToCover; // 진입가보다 낮게 사면 이익
 
         cash -= costToCover;
-        pos.shortQty -= coverQty;
+        pos.shortQty = Math.max(0, pos.shortQty - coverQty);
+        if (pos.shortQty < 1e-8) pos.shortQty = 0;
         pos.realizedPnL += tradePnL;
         totalRealizedPnL += tradePnL;
 
@@ -189,7 +208,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
           name: pos.name,
           side: 'SHORT',
           qty: coverQty,
-          entryPrice: pos.shortPrice,
+          entryPrice,
           exitPrice: price,
           pnl: tradePnL,
           pnlPercent: shortVal > 0 ? (tradePnL / shortVal) * 100 : 0,
@@ -223,12 +242,12 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
   const activeHoldings = [];
 
   for (const [ticker, pos] of Object.entries(positions)) {
-    const quote = currentPrices[ticker] || { price: pos.costBasis || pos.shortPrice || 0, changePercent: 0, previousClose: pos.costBasis || 0 };
-    const curPrice = quote.price || (pos.qty > 0 ? pos.costBasis : pos.shortPrice);
-    const prevClose = quote.previousClose || curPrice;
+    const quote = currentPrices[ticker];
 
     // 롱 포지션 계산
     if (pos.qty > 0) {
+      const curPrice = quote?.price || pos.costBasis;
+      const prevClose = quote?.previousClose || curPrice;
       const evalValue = pos.qty * curPrice;
       const totalCost = pos.qty * pos.costBasis;
       const unrealizedPnL = evalValue - totalCost;
@@ -246,11 +265,12 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
         qty: pos.qty,
         costBasis: pos.costBasis,
         currentPrice: curPrice,
+        quote,
         previousClose: prevClose,
         evalValue,
         unrealizedPnL,
         returnRate,
-        changePercent: quote.changePercent || 0,
+        changePercent: quote?.changePercent || 0,
         dailyPnL,
         realizedPnL: pos.realizedPnL
       });
@@ -258,6 +278,8 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
 
     // 숏 포지션 계산
     if (pos.shortQty > 0) {
+      const curPrice = quote?.price || pos.shortPrice;
+      const prevClose = quote?.previousClose || curPrice;
       const shortLiability = pos.shortQty * curPrice;
       const shortEntryVal = pos.shortQty * pos.shortPrice;
       const unrealizedPnL = shortEntryVal - shortLiability;
@@ -274,19 +296,20 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
         qty: pos.shortQty,
         costBasis: pos.shortPrice,
         currentPrice: curPrice,
+        quote,
         previousClose: prevClose,
         evalValue: -shortLiability,
         unrealizedPnL,
         returnRate,
-        changePercent: quote.changePercent || 0,
+        changePercent: quote?.changePercent || 0,
         dailyPnL,
         realizedPnL: pos.realizedPnL
       });
     }
   }
 
-  // 총 순자산 (NAV) = 현금 + 주식평가금 (롱 평가금 + 숏 미실현손익 반영)
-  const totalNav = cash + totalStockEval + (activeHoldings.filter(h => h.side === 'SHORT').reduce((sum, h) => sum + h.unrealizedPnL, 0));
+  // 현금에 롱 평가액을 더하고 숏 상환 의무의 평가액을 뺀다.
+  const totalNav = cash + activeHoldings.reduce((sum, holding) => sum + holding.evalValue, 0);
   
   // 비중(%) 계산
   for (const h of activeHoldings) {
@@ -296,7 +319,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
   // 순 원금 = 총 입금 - 총 출금
   const netPrincipal = totalDeposits - totalWithdrawals;
   // 총 누적 투자손익 = 실현손익 + 미실현손익 + 배당 - 수수료
-  const totalInvestmentPnL = totalRealizedPnL + totalUnrealizedPnL + totalDividends;
+  const totalInvestmentPnL = totalRealizedPnL + totalUnrealizedPnL + totalDividends - standaloneFees;
   const cumulativeReturnRate = netPrincipal > 0 ? (totalInvestmentPnL / netPrincipal) * 100 : 0;
   const dailyReturnRate = (totalNav - totalDailyPnL) > 0 ? (totalDailyPnL / (totalNav - totalDailyPnL)) * 100 : 0;
 
@@ -318,6 +341,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
     holdings: activeHoldings,
     positions,
     closedTrades,
+    invalidCloseIds,
     fxRate
   };
 }
@@ -333,13 +357,13 @@ export function calculatePerformanceMetrics(closedTrades = [], portfolio = {}) {
       winCount: 0,
       lossCount: 0,
       winRate: 0,
-      profitFactor: 0,
+      profitFactor: null,
       avgWin: 0,
       avgLoss: 0,
-      payoffRatio: 0,
+      payoffRatio: null,
       maxConsecutiveWins: 0,
       maxConsecutiveLosses: 0,
-      maxDrawdown: 0,
+      maxDrawdown: null,
       monthlyPnL: {},
       tickerPnL: {}
     };
@@ -383,20 +407,8 @@ export function calculatePerformanceMetrics(closedTrades = [], portfolio = {}) {
   const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
   const avgWin = winCount > 0 ? grossProfit / winCount : 0;
   const avgLoss = lossCount > 0 ? grossLoss / lossCount : 0;
-  const payoffRatio = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 99.9 : 0);
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.9 : 0);
-
-  // MDD (Max Drawdown) 계산
-  let peak = -Infinity;
-  let maxDrawdown = 0;
-  let runningPnL = 0;
-
-  for (const trade of closedTrades) {
-    runningPnL += trade.pnl;
-    if (runningPnL > peak) peak = runningPnL;
-    const dd = peak > 0 ? ((peak - runningPnL) / peak) * 100 : 0;
-    if (dd > maxDrawdown) maxDrawdown = dd;
-  }
+  const payoffRatio = avgLoss > 0 ? avgWin / avgLoss : null;
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : null;
 
   return {
     totalTrades,
@@ -409,7 +421,7 @@ export function calculatePerformanceMetrics(closedTrades = [], portfolio = {}) {
     payoffRatio,
     maxConsecutiveWins,
     maxConsecutiveLosses,
-    maxDrawdown,
+    maxDrawdown: null,
     monthlyPnL,
     tickerPnL
   };

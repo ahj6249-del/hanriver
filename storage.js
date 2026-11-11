@@ -63,7 +63,7 @@ export async function getAllTransactions() {
       req.onsuccess = () => {
         const data = req.result || [];
         // LocalStorage 동기화 백업
-        localStorage.setItem(LS_TX_KEY, JSON.stringify(data));
+        mirror(LS_TX_KEY, data);
         resolve(data);
       };
       req.onerror = () => {
@@ -83,43 +83,41 @@ function getFallbackTransactions() {
   }
 }
 
-export async function saveTransaction(item) {
-  const db = await initDB();
-  if (!item.id) item.id = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  if (!item.createdAt) item.createdAt = new Date().toISOString();
-
-  // LocalStorage 즉시 갱신
-  const list = getFallbackTransactions().filter(t => t.id !== item.id);
-  list.push(item);
-  localStorage.setItem(LS_TX_KEY, JSON.stringify(list));
-
-  if (db) {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('transactions', 'readwrite');
-      const store = tx.objectStore('transactions');
-      store.put(item);
-      tx.oncomplete = () => resolve(item);
-      tx.onerror = () => resolve(item);
-    });
+function mirror(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn('Local backup could not be updated', error);
   }
+}
+
+async function writeRecord(storeName, key, getFallback, id, record) {
+  const db = await initDB();
+  if (!db) {
+    const list = getFallback().filter(item => item.id !== id);
+    if (record) list.push(record);
+    localStorage.setItem(key, JSON.stringify(list));
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    if (record) store.put(record);
+    else store.delete(id);
+    transaction.oncomplete = resolve;
+    transaction.onabort = () => reject(transaction.error || new Error('저장 작업이 중단되었습니다.'));
+  });
+}
+
+export async function saveTransaction(item) {
+  item.id ||= 'tx_' + crypto.randomUUID();
+  item.createdAt ||= new Date().toISOString();
+  await writeRecord('transactions', LS_TX_KEY, getFallbackTransactions, item.id, item);
   return item;
 }
 
 export async function deleteTransaction(id) {
-  const list = getFallbackTransactions().filter(t => t.id !== id);
-  localStorage.setItem(LS_TX_KEY, JSON.stringify(list));
-
-  const db = await initDB();
-  if (db) {
-    return new Promise((resolve) => {
-      const tx = db.transaction('transactions', 'readwrite');
-      const store = tx.objectStore('transactions');
-      store.delete(id);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(true);
-    });
-  }
-  return true;
+  await writeRecord('transactions', LS_TX_KEY, getFallbackTransactions, id);
 }
 
 export async function getAllJournalNotes() {
@@ -129,7 +127,11 @@ export async function getAllJournalNotes() {
       const tx = db.transaction('journal', 'readonly');
       const store = tx.objectStore('journal');
       const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
+      req.onsuccess = () => {
+        const data = req.result || [];
+        mirror(LS_JOURNAL_KEY, data);
+        resolve(data);
+      };
       req.onerror = () => resolve(getFallbackJournal());
     });
   }
@@ -146,41 +148,14 @@ function getFallbackJournal() {
 }
 
 export async function saveJournalNote(note) {
-  if (!note.id) note.id = 'note_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  if (!note.createdAt) note.createdAt = new Date().toISOString();
-
-  const list = getFallbackJournal().filter(n => n.id !== note.id);
-  list.push(note);
-  localStorage.setItem(LS_JOURNAL_KEY, JSON.stringify(list));
-
-  const db = await initDB();
-  if (db) {
-    return new Promise((resolve) => {
-      const tx = db.transaction('journal', 'readwrite');
-      const store = tx.objectStore('journal');
-      store.put(note);
-      tx.oncomplete = () => resolve(note);
-      tx.onerror = () => resolve(note);
-    });
-  }
+  note.id ||= 'note_' + crypto.randomUUID();
+  note.createdAt ||= new Date().toISOString();
+  await writeRecord('journal', LS_JOURNAL_KEY, getFallbackJournal, note.id, note);
   return note;
 }
 
 export async function deleteJournalNote(id) {
-  const list = getFallbackJournal().filter(n => n.id !== id);
-  localStorage.setItem(LS_JOURNAL_KEY, JSON.stringify(list));
-
-  const db = await initDB();
-  if (db) {
-    return new Promise((resolve) => {
-      const tx = db.transaction('journal', 'readwrite');
-      const store = tx.objectStore('journal');
-      store.delete(id);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(true);
-    });
-  }
-  return true;
+  await writeRecord('journal', LS_JOURNAL_KEY, getFallbackJournal, id);
 }
 
 export function getSettings() {
@@ -209,7 +184,7 @@ export function saveSettings(settings) {
 /**
  * 실전 샘플 데이터셋 (미국 주식 실전 투자 예시 데이터)
  */
-export async function loadSampleData() {
+export function getSampleData() {
   const sampleTransactions = [
     { id: 'tx_init_dep', date: '2026-01-05 09:30', type: 'DEPOSIT', ticker: '', name: '초기 투자 원금', qty: 0, price: 50000, fee: 0, tax: 0, memo: '새해 미국 주식 시드머니 입금' },
     // NVDA 분할 매수
@@ -265,13 +240,14 @@ export async function loadSampleData() {
     }
   ];
 
-  // 저장 처리
-  for (const t of sampleTransactions) {
-    await saveTransaction(t);
-  }
-  for (const n of sampleNotes) {
-    await saveJournalNote(n);
-  }
+  return { transactions: sampleTransactions, journal: sampleNotes };
+}
+
+// v1 stored these examples in the real ledger. Preserve any rows the user edited.
+export function isLegacySample(row, examples) {
+  const example = examples.find(item => item.id === row.id);
+  return Boolean(example && !row.accountId &&
+    Object.entries(example).every(([key, value]) => JSON.stringify(row[key]) === JSON.stringify(value)));
 }
 
 /**
@@ -280,7 +256,7 @@ export async function loadSampleData() {
 export async function exportAllData() {
   const transactions = await getAllTransactions();
   const journal = await getAllJournalNotes();
-  const settings = getSettings();
+  const { apiKeyFinnhub, apiKeyTwelveData, ...settings } = getSettings();
 
   const data = {
     brand: '한강아니면 한강뷰 (Hanriver)',
@@ -317,6 +293,7 @@ export async function importAllData(jsonData) {
     }
   }
   if (jsonData.settings) {
-    saveSettings(jsonData.settings);
+    const { apiKeyFinnhub, apiKeyTwelveData, ...settings } = jsonData.settings;
+    saveSettings({ ...getSettings(), ...settings });
   }
 }

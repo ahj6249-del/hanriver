@@ -74,7 +74,7 @@
 
       <div class="sidebar-bottom">
         <div>한강아니면 한강뷰 v1.0 MVP</div>
-        <div style="margin-top: 4px; color: var(--accent-emerald);">데이터 기기 내 안전 보관</div>
+        <div style="margin-top: 4px; color: var(--accent-emerald);">거래와 복기 노트는 이 브라우저에 저장</div>
       </div>
     </aside>
 
@@ -84,10 +84,11 @@
       <header class="top-header">
         <div class="header-left">
           <h2 class="page-title" id="current-page-title">대시보드</h2>
-          <select class="account-selector" id="account-select">
+          <select class="account-selector" id="account-select" aria-label="투자계좌">
             <option value="default">메인 투자계좌</option>
             <option value="growth">공격형 모멘텀 계좌</option>
             <option value="dividend">배당·가치주 계좌</option>
+            <option value="demo">예시 계좌 (읽기 전용)</option>
           </select>
         </div>
         <div class="header-right">
@@ -104,17 +105,15 @@
           <button class="btn-header-action" id="btn-header-settings" title="설정">
             <span>⚙️</span> <span class="hide-mobile">설정</span>
           </button>
-          <span id="api-status-badge" style="display: none; font-size: 11.5px; padding: 4px 10px; border-radius: 20px; background: rgba(16,185,129,0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); font-weight: 600;">
-            ● Finnhub 실시간
-          </span>
           <button class="btn-header-action" id="btn-load-sample-top" style="border-color: rgba(16,185,129,0.3); color: var(--accent-emerald);">
-            <span>🚀</span> <span class="hide-mobile">샘플 데이터</span>
+            예시 보기
           </button>
         </div>
       </header>
 
       <!-- 본문 컨텐츠 -->
       <main class="content-area">
+        <p class="data-notice" id="demo-notice" role="status" hidden>예시 계좌 · 가상 거래와 예시 시세를 보여줍니다.</p>
         <!-- 1. 대시보드 뷰 -->
         <section id="view-dashboard" class="view-section active">
           <!-- 연간 목표 달성 프로그레스 배너 -->
@@ -122,7 +121,7 @@
             <div class="goal-header">
               <div class="goal-title">
                 <span>🎯</span>
-                <span id="goal-banner-title">2026년 목표 수익 달성률</span>
+                <span id="goal-banner-title">올해 실현 매매손익 목표</span>
               </div>
               <div class="goal-stats">
                 <span id="goal-progress-text" class="tabular" style="font-weight: 700; color: var(--accent-emerald);">0.0%</span>
@@ -134,18 +133,7 @@
             </div>
           </div>
 
-          <!-- 탭 바로가기 퀵 바 -->
-          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; scrollbar-width: none;" id="dashboard-quick-nav">
-            <button class="btn-tv-chip btn-quick-nav active" data-view="dashboard">📊 대시보드</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="portfolio">💼 내 포트폴리오</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="habits" style="background: rgba(168,85,247,0.18); color: #c084fc; border-color: rgba(168,85,247,0.4); font-weight: 700;">🧠 매매습관 & AI진단</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="performance">📈 투자 성과분석</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="journal">📓 투자 복기노트</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="stocks">🔍 종목시세·차트</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="transactions">📝 전체 거래내역</button>
-            <button class="btn-tv-chip btn-quick-nav" data-view="settings">⚙️ 설정</button>
-          </div>
-
+          <p class="data-notice" id="ledger-warning" role="status" hidden>보유 수량을 초과한 매도·숏커버가 집계에서 제외됐습니다. 거래내역에서 날짜와 수량을 확인해주세요.</p>
           <!-- 핵심 지표 카드 그리드 -->
           <div class="metrics-grid">
             <div class="card metric-card">
@@ -164,7 +152,7 @@
               <span class="metric-sub muted" id="m-cash-ratio">비중 0.0%</span>
             </div>
             <div class="card metric-card">
-              <span class="metric-label">당일 손익 (Today)</span>
+              <span class="metric-label">보유 종목 전일 종가 대비</span>
               <span class="metric-value tabular" id="m-daily-pnl">$0.00</span>
               <span class="metric-sub tabular" id="m-daily-rate">0.00%</span>
             </div>
@@ -191,24 +179,11 @@
           </div>
 
           <!-- 차트 영역: 자산 변화 곡선 + 자산 비중 도넛 -->
+          <p class="quote-status muted" id="m-quote-status"></p>
           <div class="charts-grid">
             <div class="card">
-              <div class="chart-header">
-                <div>
-                  <h3 class="card-title">자산 변화 및 누적 수익률 추이</h3>
-                  <p class="muted" style="font-size: 12px;">입출금 분리 실제 투자 순자산 추이</p>
-                </div>
-                <div class="chart-period-tabs">
-                  <button class="period-tab" data-period="1W">1W</button>
-                  <button class="period-tab" data-period="1M">1M</button>
-                  <button class="period-tab" data-period="3M">3M</button>
-                  <button class="period-tab" data-period="6M">6M</button>
-                  <button class="period-tab active" data-period="ALL">전체</button>
-                </div>
-              </div>
-              <div class="canvas-container">
-                <canvas id="chart-asset-curve"></canvas>
-              </div>
+              <h3 class="card-title">자산 추이</h3>
+              <p class="muted">과거 일별 계좌 평가액이 없어 자산 추이와 최대 낙폭(MDD)을 계산할 수 없습니다.</p>
             </div>
 
             <div class="card">
@@ -555,7 +530,7 @@
           <div class="card">
             <h3 class="card-title">데이터 백업 및 초기화</h3>
             <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px;">
-              <button class="btn-primary" id="btn-load-sample">🚀 실전 예제 데이터 불러오기</button>
+              <button class="btn-primary" id="btn-load-sample">읽기 전용 예시 계좌 보기</button>
               <button class="btn-secondary" id="btn-export-json">💾 전체 데이터 백업 (JSON)</button>
               <button class="btn-secondary" id="btn-import-json-trigger">📂 백업 파일 복원</button>
               <input type="file" id="json-file-input" accept=".json" style="display: none;">
@@ -628,6 +603,7 @@
               <option value="WITHDRAW">원금 출금 (WITHDRAW)</option>
               <option value="DIVIDEND">배당금 입금 (DIVIDEND)</option>
               <option value="FEE">기타 수수료 (FEE)</option>
+              <option value="SPLIT">주식분할</option>
             </select>
           </div>
         </div>
@@ -645,12 +621,12 @@
 
         <div style="margin-top: -8px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;" id="quick-ticker-chips">
           <span style="font-size: 11px; color: var(--text-muted); align-self: center;">빠른선택:</span>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="NVDA" data-name="NVIDIA Corporation" data-price="145.20">NVDA</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="AAPL" data-name="Apple Inc." data-price="226.50">AAPL</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="TSLA" data-name="Tesla, Inc." data-price="218.40">TSLA</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="SPY" data-name="SPDR S&P 500 ETF" data-price="596.20">SPY</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="QQQ" data-name="Invesco QQQ Trust" data-price="512.40">QQQ</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="PLTR" data-name="Palantir Technologies" data-price="62.40">PLTR</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="NVDA" data-name="NVIDIA Corporation">NVDA</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="AAPL" data-name="Apple Inc.">AAPL</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="TSLA" data-name="Tesla, Inc.">TSLA</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="SPY" data-name="SPDR S&P 500 ETF">SPY</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="QQQ" data-name="Invesco QQQ Trust">QQQ</button>
+          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="PLTR" data-name="Palantir Technologies">PLTR</button>
         </div>
 
         <div class="form-row" id="row-qty-price">
@@ -698,7 +674,7 @@
         <input type="hidden" id="journal-id">
         <div class="form-row">
           <div class="form-group">
-            <label>날짜 *</label>
+            <label for="journal-date">날짜 *</label>
             <input type="date" id="journal-date" class="form-input" required>
           </div>
           <div class="form-group">

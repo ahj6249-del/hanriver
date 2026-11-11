@@ -935,3 +935,23 @@ dialog::backdrop {
     font-size: 22px;
   }
 }
+
+.data-notice {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+}
+
+.quote-status {
+  margin: 10px 0 16px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.demo-mode :is(#btn-quick-new-tx, #btn-new-tx, #btn-add-tx-from-port, #btn-empty-port-add,
+  #btn-new-journal-note, #btn-empty-journal-add, .btn-port-action, .btn-price-edit, .btn-tx-edit,
+  .btn-tx-del, .btn-del-journal, .btn-quick-buy, #btn-export-csv) {
+  display: none;
+}
