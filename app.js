@@ -36,6 +36,7 @@ import {
   saveManualPrice,
   fetchStockQuote,
   searchStock,
+  TICKER_PATTERN,
   testFinnhubKey,
   refreshAllQuotes
 } from './api.js';
@@ -745,59 +746,71 @@ function renderJournal() {
 /**
  * 7. 종목 검색 및 시세 뷰 렌더링
  */
-function renderStocks() {
+let stockSearchVersion = 0;
+
+async function renderStocks() {
   const container = document.getElementById('stock-search-results');
-  if (!container) return;
+  const status = document.getElementById('stock-search-status');
+  const query = document.getElementById('stock-search-input').value.trim();
+  const version = ++stockSearchVersion;
+  if (query) status.textContent = '종목 검색 중…';
+  const { matches, directoryAvailable } = query ? await searchStock(query) :
+    { matches: STOCK_DATABASE.slice(0, 6), directoryAvailable: true };
+  if (version !== stockSearchVersion || query !== document.getElementById('stock-search-input').value.trim()) return;
 
-  const query = (document.getElementById('stock-search-input')?.value || '').trim();
-  const list = query ? searchStock(query) : STOCK_DATABASE;
+  const manualTicker = query.toUpperCase();
+  const canUseTicker = TICKER_PATTERN.test(manualTicker) && !matches.some(stock => stock.ticker === manualTicker ||
+    stock.ticker.replaceAll('.', '-') === manualTicker);
+  const results = canUseTicker ? [...matches, { ticker: manualTicker, name: '티커 직접 입력' }] : matches;
+  status.textContent = !directoryAvailable ? '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.' :
+    !query ? '티커나 회사명을 입력하면 다른 종목도 찾을 수 있습니다.' :
+    !matches.length ? '상장 목록에서 일치하는 종목을 찾지 못했습니다.' : '';
 
-  container.innerHTML = list.map(s => {
-    const quote = state.prices[s.ticker];
+  container.innerHTML = results.map(stock => {
+    const ticker = escapeHTML(stock.ticker);
+    const quote = state.prices[stock.ticker];
+    const market = [stock.exchange, stock.etf ? 'ETF' : ''].filter(Boolean).join(' · ');
     return `
-      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <strong style="font-size: 18px; letter-spacing: -0.3px;">${s.ticker}</strong>
-              <div class="muted" style="font-size: 11.5px;">${s.name}</div>
-            </div>
-            <span class="badge" style="background: var(--bg-input); font-size: 10px;">${s.sector}</span>
-          </div>
-          <div style="margin-top: 14px;">
-            <div class="tabular" style="font-size: 22px; font-weight: 700;">${quote ? fmtMoney(quote.price) : '—'}</div>
-            <div class="muted">${escapeHTML(quote ? quoteLabel(quote) : '시세 필요')}</div>
-          </div>
+      <article class="card stock-result">
+        <div class="stock-result-title"><strong>${ticker}</strong><span class="muted">${escapeHTML(market)}</span></div>
+        <div class="stock-result-name">${escapeHTML(stock.name)}</div>
+        <div class="stock-result-quote">
+          <strong>${quote ? fmtMoney(quote.price) : '—'}</strong>
+          <span class="muted">${escapeHTML(quote ? quoteLabel(quote) : '시세 없음')}</span>
         </div>
-        <div style="margin-top: 16px; display: flex; gap: 8px;">
-          <button class="btn-primary btn-quick-buy" data-ticker="${s.ticker}" style="flex: 1; padding: 6px; font-size: 12px;">매수 기록</button>
-          <button class="btn-secondary btn-quick-tv" data-ticker="${s.ticker}" style="padding: 6px 10px; font-size: 12px;">📈 차트</button>
-          <button class="btn-secondary btn-quick-quote" data-ticker="${s.ticker}" style="padding: 6px 10px; font-size: 12px;">시세 갱신</button>
+        <div class="stock-result-actions">
+          <button type="button" class="btn-primary btn-quick-buy" data-ticker="${ticker}">매수 기록</button>
+          <button type="button" class="btn-secondary btn-quick-tv" data-ticker="${ticker}">차트</button>
+          <button type="button" class="btn-secondary btn-quick-quote" data-ticker="${ticker}">시세 조회</button>
         </div>
-      </div>
-    `;
+      </article>`;
   }).join('');
 
-  container.querySelectorAll('.btn-quick-tv').forEach(b => {
-    b.onclick = () => openTradingViewModal(b.dataset.ticker);
-  });
-
-  container.querySelectorAll('.btn-quick-buy').forEach(b => {
-    b.onclick = () => {
-      openTransactionModal('BUY', b.dataset.ticker);
+  for (const button of container.querySelectorAll('.btn-quick-buy')) {
+    button.onclick = () => {
+      const stock = results.find(row => row.ticker === button.dataset.ticker);
+      openTransactionModal('BUY', stock.ticker, null, stock.name === '티커 직접 입력' ? '' : stock.name);
     };
-  });
-
-  container.querySelectorAll('.btn-quick-quote').forEach(b => {
-    b.onclick = async () => {
-      const ticker = b.dataset.ticker;
-      b.textContent = '조회 중...';
-      const quote = await fetchStockQuote(ticker, state.settings);
-      b.textContent = '시세 갱신';
-      showToast(quote.price > 0 ? `${ticker}: ${fmtMoney(quote.price)} (${quoteLabel(quote)})` : `${ticker}: 시세를 가져오지 못했습니다.`);
-      refreshState();
+  }
+  for (const button of container.querySelectorAll('.btn-quick-tv')) {
+    button.onclick = () => openTradingViewModal(button.dataset.ticker);
+  }
+  for (const button of container.querySelectorAll('.btn-quick-quote')) {
+    button.onclick = async () => {
+      button.disabled = true;
+      button.textContent = '조회 중…';
+      try {
+        const ticker = button.dataset.ticker;
+        const quote = await fetchStockQuote(ticker, state.settings);
+        showToast(quote.price > 0 ? `${ticker}: ${fmtMoney(quote.price)} (${quoteLabel(quote)})` :
+          `${ticker}: 시세를 가져오지 못했습니다. 시세 API 설정을 확인해주세요.`);
+        await refreshState();
+      } finally {
+        button.disabled = false;
+        button.textContent = '시세 조회';
+      }
     };
-  });
+  }
 }
 
 /**
@@ -1105,43 +1118,111 @@ function drawPnLDistributionChart() {
 /**
  * 모달 열기 및 제어
  */
-function openTransactionModal(type = 'BUY', ticker = '', editTx = null) {
+function openTransactionModal(type = 'BUY', ticker = '', editTx = null, stockName = '') {
   if (state.accountId === DEMO_ACCOUNT) return;
   const modal = document.getElementById('modal-transaction');
   if (!modal) return;
 
-  document.getElementById('modal-tx-title').textContent = editTx ? '거래 기록 수정' : '새 거래 기록';
+  document.getElementById('modal-tx-title').textContent = editTx ? '거래 기록 수정' : (TX_TYPE_LABELS[type] || '거래') + ' 기록';
   document.getElementById('tx-id').value = editTx ? editTx.id : '';
   document.getElementById('tx-date').value = editTx ? editTx.date.replace(' ', 'T') : localDateTime();
   document.getElementById('tx-type').value = editTx ? editTx.type : type;
   document.getElementById('tx-ticker').value = editTx ? editTx.ticker : ticker;
-  document.getElementById('tx-name').value = editTx ? (editTx.name || '') : '';
+  document.getElementById('tx-name').value = editTx ? (editTx.name || '') : stockName;
   document.getElementById('tx-qty').value = editTx ? editTx.qty : '';
   document.getElementById('tx-price').value = editTx ? (editTx.type === 'SPLIT' ? editTx.ratio : (editTx.type === 'FEE' ? (editTx.amount || editTx.price || editTx.fee) : editTx.price)) : '';
   document.getElementById('tx-fee').value = editTx ? (editTx.fee || 0) : 0;
   document.getElementById('tx-tax').value = editTx ? (editTx.tax || 0) : 0;
   document.getElementById('tx-memo').value = editTx ? (editTx.memo || '') : '';
 
-  const cleanTicker = (ticker || '').toUpperCase().trim();
-  const matchedStock = STOCK_DATABASE.find(s => s.ticker === cleanTicker);
-  if (!editTx) {
-    if (matchedStock && !document.getElementById('tx-name').value) {
-      document.getElementById('tx-name').value = matchedStock.name;
-    }
-
-  }
-
-  // 퀵 티커 칩 클릭 이벤트 바인딩
-  document.querySelectorAll('#quick-ticker-chips .chip-quick-ticker').forEach(b => {
-    b.onclick = () => {
-      document.getElementById('tx-ticker').value = b.dataset.ticker;
-      document.getElementById('tx-name').value = b.dataset.name || '';
-      document.getElementById('tx-price').value = '';
-    };
-  });
-
+  const matchedStock = STOCK_DATABASE.find(stock => stock.ticker === ticker);
+  if (!editTx && !stockName && matchedStock) document.getElementById('tx-name').value = matchedStock.name;
+  document.getElementById('tx-details').open = type !== TX_TYPES.BUY || Boolean(editTx);
+  resetSymbolResults();
+  renderRecentTickers();
   updateTxModalFields();
   modal.showModal();
+  document.getElementById(ticker && type === TX_TYPES.BUY ? 'tx-qty' : 'tx-ticker').focus();
+}
+
+let symbolSearchVersion = 0;
+let symbolSearchTimer;
+
+function resetSymbolResults() {
+  ++symbolSearchVersion;
+  clearTimeout(symbolSearchTimer);
+  const results = document.getElementById('tx-symbol-results');
+  results.replaceChildren();
+  results.hidden = true;
+  document.getElementById('tx-symbol-status').textContent = '';
+}
+
+function selectTradeSymbol(ticker, name) {
+  document.getElementById('tx-ticker').value = ticker;
+  document.getElementById('tx-name').value = name;
+  resetSymbolResults();
+  document.getElementById('quick-ticker-chips').hidden = true;
+  document.getElementById(document.getElementById('tx-type').value === 'SPLIT' ? 'tx-price' : 'tx-qty').focus();
+}
+
+function renderRecentTickers() {
+  const chips = document.getElementById('quick-ticker-chips');
+  chips.replaceChildren();
+  const recent = [...state.transactions].filter(trade => trade.ticker).sort((a, b) => b.date.localeCompare(a.date));
+  const seen = new Set();
+  for (const stock of [...recent, ...STOCK_DATABASE]) {
+    if (seen.has(stock.ticker)) continue;
+    seen.add(stock.ticker);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn-secondary';
+    button.textContent = stock.ticker;
+    button.onclick = () => selectTradeSymbol(stock.ticker, stock.name || '');
+    chips.append(button);
+    if (seen.size === 5) break;
+  }
+  chips.hidden = Boolean(document.getElementById('tx-ticker').value);
+}
+
+function searchTradeSymbol() {
+  resetSymbolResults();
+  const field = document.getElementById('tx-ticker');
+  const query = field.value.trim();
+  const status = document.getElementById('tx-symbol-status');
+  document.getElementById('tx-name').value = '';
+  document.getElementById('quick-ticker-chips').hidden = Boolean(query);
+  if (!query) return;
+  const version = symbolSearchVersion;
+  symbolSearchTimer = setTimeout(async () => {
+    const { matches, directoryAvailable } = await searchStock(query, 6);
+    if (version !== symbolSearchVersion || !field.closest('dialog').open) return;
+    const results = document.getElementById('tx-symbol-results');
+    for (const stock of matches) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      const ticker = document.createElement('strong');
+      ticker.textContent = stock.ticker;
+      const name = document.createElement('span');
+      name.textContent = stock.name;
+      button.append(ticker, name);
+      button.onclick = () => selectTradeSymbol(stock.ticker, stock.name);
+      results.append(button);
+    }
+    results.hidden = !matches.length;
+    if (!matches.length) status.textContent = directoryAvailable ?
+      '일치하는 종목이 없습니다. 정확한 티커를 직접 입력할 수 있습니다.' : '상장 목록을 불러오지 못했습니다. 티커를 직접 입력할 수 있습니다.';
+  }, 100);
+}
+
+function updateTradeTotal() {
+  const type = document.getElementById('tx-type').value;
+  const qty = Number(document.getElementById('tx-qty').value);
+  const price = Number(document.getElementById('tx-price').value);
+  const fee = Number(document.getElementById('tx-fee').value);
+  const tax = Number(document.getElementById('tx-tax').value);
+  const total = document.getElementById('tx-total');
+  total.textContent = type === 'SPLIT' ? '' : (price > 0 ?
+    `예상 정산액 ${formatUSD(settlement({ type, qty, price, fee, tax }))}` : '');
 }
 
 function updateTxModalFields() {
@@ -1153,12 +1234,16 @@ function updateTxModalFields() {
 
   const cashOnly = ['DEPOSIT', 'WITHDRAW', 'FEE'].includes(type);
   const isSplit = type === 'SPLIT';
-  if (rowTicker) rowTicker.style.display = cashOnly ? 'none' : 'grid';
-  document.getElementById('quick-ticker-chips').style.display = cashOnly ? 'none' : 'flex';
+  rowTicker.hidden = cashOnly;
+  document.getElementById('group-tx-name').hidden = cashOnly;
   if (groupQty) groupQty.style.display = cashOnly || isSplit ? 'none' : 'flex';
   if (labelPrice) labelPrice.textContent = isSplit ? '분할 비율 (예: 4 또는 0.5)' :
     cashOnly ? '금액 (USD)' : type === 'DIVIDEND' ? '주당 배당금 (USD)' : '체결 가격 (USD)';
   if (rowFees) rowFees.style.display = cashOnly || isSplit ? 'none' : 'grid';
+  const editing = Boolean(document.getElementById('tx-id').value);
+  document.getElementById('btn-save-tx').textContent = editing ? '수정 저장' : `${TX_TYPE_LABELS[type]} 저장`;
+  if (!editing) document.getElementById('modal-tx-title').textContent = `${TX_TYPE_LABELS[type]} 기록`;
+  updateTradeTotal();
 
 }
 
@@ -1193,13 +1278,7 @@ export function loadTradingViewChart(containerId, rawSymbol = 'NASDAQ:NVDA') {
   if (!container) return;
   container.innerHTML = '';
 
-  let symbol = (rawSymbol || 'NVDA').trim().toUpperCase();
-  if (!symbol.includes(':')) {
-    if (symbol === 'SPY') symbol = 'AMEX:SPY';
-    else if (symbol === 'PLTR') symbol = 'NYSE:PLTR';
-    else symbol = `NASDAQ:${symbol}`;
-  }
-
+  const symbol = (rawSymbol || 'NVDA').trim().toUpperCase();
   const cleanSym = encodeURIComponent(symbol);
   const iframe = document.createElement('iframe');
   iframe.style.width = '100%';
@@ -1233,6 +1312,7 @@ function initEvents() {
   });
 
   // 상단 새 거래 버튼
+  document.getElementById('btn-mobile-buy')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-quick-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-add-tx-from-port')?.addEventListener('click', () => openTransactionModal('BUY'));
@@ -1258,6 +1338,30 @@ function initEvents() {
 
   // 거래 모달 타입 변경 시 UI 반응
   document.getElementById('tx-type')?.addEventListener('change', updateTxModalFields);
+
+  document.getElementById('tx-ticker').addEventListener('input', searchTradeSymbol);
+  document.getElementById('tx-ticker').addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown') {
+      const first = document.querySelector('#tx-symbol-results button');
+      if (first) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const ticker = event.currentTarget.value.trim().toUpperCase();
+      const exact = [...document.querySelectorAll('#tx-symbol-results button')].find(button =>
+        button.querySelector('strong').textContent === ticker);
+      if (exact) exact.click();
+      else if (TICKER_PATTERN.test(ticker)) selectTradeSymbol(ticker, '');
+      else document.querySelector('#tx-symbol-results button')?.click();
+    }
+  });
+  for (const id of ['tx-qty', 'tx-price', 'tx-fee', 'tx-tax']) {
+    document.getElementById(id).addEventListener('input', updateTradeTotal);
+  }
+  document.getElementById('modal-transaction').addEventListener('close', resetSymbolResults);
 
   // 거래 모달 닫기
   document.getElementById('btn-close-tx-modal')?.addEventListener('click', () => document.getElementById('modal-transaction')?.close());
@@ -1285,7 +1389,12 @@ function initEvents() {
 
     const cashOnly = ['DEPOSIT', 'WITHDRAW', 'FEE'].includes(type);
     const isSplit = type === 'SPLIT';
-    if (price <= 0 || (!cashOnly && (!/^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(ticker) || (!isSplit && qty <= 0))) ||
+    if (!cashOnly && !TICKER_PATTERN.test(ticker)) {
+      document.getElementById('tx-symbol-status').textContent = '검색 결과에서 종목을 선택하거나 정확한 티커를 입력해주세요.';
+      document.getElementById('tx-ticker').focus();
+      return;
+    }
+    if (price <= 0 || (!cashOnly && !isSplit && qty <= 0) ||
         (!cashOnly && !isSplit && (fee < 0 || tax < 0))) {
       alert('유형에 맞는 종목, 양수 금액과 수량, 0 이상의 수수료와 세금을 입력해주세요.');
       return;
@@ -1328,7 +1437,7 @@ function initEvents() {
       saveButton.disabled = false;
     }
     document.getElementById('modal-transaction')?.close();
-    showToast(`${ticker || type} 거래 기록이 저장되었습니다.`);
+    showToast(`${ticker ? ticker + ' ' : ''}${TX_TYPE_LABELS[type]} 기록을 저장했습니다.`);
     refreshState();
   });
 
@@ -1534,9 +1643,12 @@ function initEvents() {
   document.getElementById('btn-header-settings')?.addEventListener('click', () => switchView('settings'));
 
   // 종목 검색
-  document.getElementById('btn-stock-search')?.addEventListener('click', renderStocks);
-  document.getElementById('stock-search-input')?.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter') renderStocks();
+  document.getElementById('stock-search-form').addEventListener('submit', event => {
+    event.preventDefault();
+    renderStocks();
+  });
+  document.getElementById('stock-search-input').addEventListener('input', event => {
+    if (!event.target.value.trim()) renderStocks();
   });
 
   // TradingView 심볼 칩 클릭 이벤트

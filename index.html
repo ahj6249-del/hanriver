@@ -41,7 +41,7 @@
 
       <div style="padding: 10px 16px 0;">
         <button id="btn-quick-new-tx" class="quick-action-btn">
-          <span>＋</span> 새 거래 기록
+          <span>＋</span> 매수 기록
         </button>
       </div>
 
@@ -92,6 +92,7 @@
           </select>
         </div>
         <div class="header-right">
+          <button class="btn-primary mobile-buy" id="btn-mobile-buy" type="button">＋ 매수</button>
           <div class="currency-toggle">
             <button class="currency-btn active" id="btn-curr-usd">USD ($)</button>
             <button class="currency-btn" id="btn-curr-krw">KRW (₩)</button>
@@ -410,6 +411,16 @@
 
         <!-- 7. 종목 검색 및 시세 뷰 -->
         <section id="view-stocks" class="view-section">
+          <div class="card stock-search-panel">
+            <label class="card-title" for="stock-search-input">미국 주식 · ETF 검색</label>
+            <form id="stock-search-form" class="stock-search-form">
+              <input type="search" id="stock-search-input" class="form-input" placeholder="티커 또는 회사명 (예: VOO, Costco, 브로드컴)" autocomplete="off">
+              <button class="btn-primary" type="submit">검색</button>
+            </form>
+            <p id="stock-search-status" class="muted" role="status"></p>
+          </div>
+          <div id="stock-search-results" class="metrics-grid stock-search-results"></div>
+
           <!-- TradingView 실시간 캔들 차트 섹션 -->
           <div class="card" style="margin-bottom: 24px;">
             <div class="chart-header" style="flex-wrap: wrap; gap: 12px;">
@@ -432,16 +443,6 @@
             </div>
           </div>
 
-          <div class="card" style="margin-bottom: 20px;">
-            <h3 class="card-title">미국 주식 실시간/지연 시세 검색</h3>
-            <div style="display: flex; gap: 10px; margin-top: 12px;">
-              <input type="text" id="stock-search-input" class="form-input" placeholder="티커 또는 회사명 (예: NVDA, Apple, 테슬라)" style="flex: 1;">
-              <button class="btn-primary" id="btn-stock-search">검색</button>
-            </div>
-          </div>
-          <div id="stock-search-results" class="metrics-grid">
-            <!-- JS 동적 렌더링 -->
-          </div>
         </section>
 
         <!-- 8. 설정 뷰 -->
@@ -587,13 +588,34 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="tx-id">
+        <div id="row-ticker-name" class="form-group">
+          <label for="tx-ticker">종목</label>
+          <input type="text" id="tx-ticker" class="form-input" placeholder="티커 또는 회사명" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-controls="tx-symbol-results">
+          <div id="quick-ticker-chips" class="ticker-chips"></div>
+          <div id="tx-symbol-results" class="tx-symbol-results" role="group" aria-label="종목 검색 결과" hidden></div>
+          <p id="tx-symbol-status" class="muted" role="status"></p>
+        </div>
+        <div class="form-row" id="row-qty-price">
+          <div class="form-group" id="group-tx-qty">
+            <label id="label-tx-qty" for="tx-qty">수량 (주) *</label>
+            <input type="number" step="any" inputmode="decimal" id="tx-qty" class="form-input" placeholder="0">
+          </div>
+          <div class="form-group" id="group-tx-price">
+            <label id="label-tx-price" for="tx-price">체결 가격 (USD $) *</label>
+            <input type="number" step="any" inputmode="decimal" id="tx-price" class="form-input" placeholder="0.00">
+          </div>
+        </div>
+
+        <p class="trade-total" id="tx-total" role="status"></p>
+        <details id="tx-details" class="trade-details">
+          <summary>거래 유형 · 일시 · 수수료 · 메모</summary>
         <div class="form-row">
           <div class="form-group">
-            <label>거래 일시 *</label>
+            <label for="tx-date">거래 일시</label>
             <input type="datetime-local" id="tx-date" class="form-input" required>
           </div>
           <div class="form-group">
-            <label>거래 유형 *</label>
+            <label for="tx-type">거래 유형</label>
             <select id="tx-type" class="form-select" required>
               <option value="BUY">매수 (BUY - 롱)</option>
               <option value="SELL">매도 (SELL - 롱 익절/손절)</option>
@@ -608,38 +630,10 @@
           </div>
         </div>
 
-        <div class="form-row" id="row-ticker-name">
-          <div class="form-group">
-            <label>티커 (Ticker) *</label>
-            <input type="text" id="tx-ticker" class="form-input" placeholder="예: NVDA, AAPL" style="text-transform: uppercase;">
+          <div class="form-group" id="group-tx-name">
+            <label for="tx-name">종목명</label>
+            <input type="text" id="tx-name" class="form-input" placeholder="종목을 선택하면 자동 입력">
           </div>
-          <div class="form-group">
-            <label>종목명</label>
-            <input type="text" id="tx-name" class="form-input" placeholder="예: 엔비디아">
-          </div>
-        </div>
-
-        <div style="margin-top: -8px; margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap;" id="quick-ticker-chips">
-          <span style="font-size: 11px; color: var(--text-muted); align-self: center;">빠른선택:</span>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="NVDA" data-name="NVIDIA Corporation">NVDA</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="AAPL" data-name="Apple Inc.">AAPL</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="TSLA" data-name="Tesla, Inc.">TSLA</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="SPY" data-name="SPDR S&P 500 ETF">SPY</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="QQQ" data-name="Invesco QQQ Trust">QQQ</button>
-          <button type="button" class="btn-tv-chip chip-quick-ticker" data-ticker="PLTR" data-name="Palantir Technologies">PLTR</button>
-        </div>
-
-        <div class="form-row" id="row-qty-price">
-          <div class="form-group" id="group-tx-qty">
-            <label id="label-tx-qty">수량 (주) *</label>
-            <input type="number" step="any" id="tx-qty" class="form-input" placeholder="0">
-          </div>
-          <div class="form-group" id="group-tx-price">
-            <label id="label-tx-price">체결 가격 (USD $) *</label>
-            <input type="number" step="any" id="tx-price" class="form-input" placeholder="0.00">
-          </div>
-        </div>
-
         <div class="form-row" id="row-fees">
           <div class="form-group">
             <label>수수료 ($)</label>
@@ -655,6 +649,7 @@
           <label>매매 메모 / 원칙</label>
           <input type="text" id="tx-memo" class="form-input" placeholder="매매 사유나 원칙 기록 (예: 전고점 돌파 진입)">
         </div>
+        </details>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" id="btn-cancel-tx">취소</button>

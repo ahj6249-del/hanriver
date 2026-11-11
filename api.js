@@ -205,11 +205,53 @@ function updatePriceCache(ticker, quote) {
   }
 }
 
-/**
- * 종목 검색 / 자동완성
- */
-export function searchStock(query) {
-  if (!query) return [];
-  const q = query.toUpperCase().trim();
-  return STOCK_DATABASE.filter(s => s.ticker.includes(q) || s.name.toUpperCase().includes(q));
+// Nasdaq Trader symbol directory snapshot, generated from nasdaqlisted.txt and otherlisted.txt.
+let directoryRequest;
+const koreanNames = {
+  NVDA: '엔비디아', AAPL: '애플', TSLA: '테슬라', MSFT: '마이크로소프트',
+  AMZN: '아마존', GOOGL: '구글 알파벳', GOOG: '구글 알파벳', META: '메타',
+  PLTR: '팔란티어', AMD: '에이엠디', AVGO: '브로드컴', NFLX: '넷플릭스',
+  COIN: '코인베이스', HOOD: '로빈후드', TSM: '티에스엠씨 대만반도체',
+  'BRK.B': '버크셔 해서웨이', COST: '코스트코', WMT: '월마트', DIS: '디즈니',
+  SOFI: '소파이', UBER: '우버', ORCL: '오라클', INTC: '인텔', SMCI: '슈퍼마이크로',
+  IONQ: '아이온큐', MSTR: '마이크로스트래티지 스트래티지', RDDT: '레딧', VOO: '뱅가드',
+  GLD: '금 골드', SOXL: '반도체 레버리지', TQQQ: '나스닥 레버리지'
+};
+export const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.:-]{0,24}$/;
+
+function loadDirectory() {
+  directoryRequest ??= fetch('./us-symbols.json').then(response => {
+    if (!response.ok) throw new Error('종목 목록을 불러오지 못했습니다.');
+    return response.json();
+  }).catch(() => {
+    directoryRequest = undefined;
+    return null;
+  });
+  return directoryRequest;
+}
+
+export async function searchStock(query, limit = 20) {
+  const q = query.trim().toUpperCase();
+  if (!q) return { matches: [], directoryAvailable: true };
+  const directory = await loadDirectory();
+  const stocks = directory ? directory.map(([ticker, name, exchange, etf]) => ({
+    ticker, name, exchange, etf
+  })) : STOCK_DATABASE;
+  const compact = q.replace(/\s+/g, '');
+  const ranked = [];
+  for (const stock of stocks) {
+    const { ticker, name } = stock;
+    const symbol = ticker.replaceAll('.', '-');
+    const alias = koreanNames[ticker]?.replace(/\s+/g, '') || '';
+    const upperName = name.toUpperCase();
+    const score = ticker === q || symbol === q ? 0 :
+      ticker.startsWith(q) ? 1 :
+      alias && alias.includes(compact) ? 2 :
+      upperName.startsWith(q) ? 3 :
+      ticker.includes(q) || upperName.includes(q) ? 4 : -1;
+    if (score >= 0) ranked.push({ stock, score });
+  }
+  ranked.sort((a, b) => a.score - b.score || a.stock.ticker.length - b.stock.ticker.length ||
+    a.stock.ticker.localeCompare(b.stock.ticker));
+  return { matches: ranked.slice(0, limit).map(row => row.stock), directoryAvailable: Boolean(directory) };
 }

@@ -955,3 +955,57 @@ dialog::backdrop {
   .btn-tx-del, .btn-del-journal, .btn-quick-buy, #btn-export-csv) {
   display: none;
 }
+
+.mobile-buy { display: none; }
+.stock-search-panel { margin-bottom: 14px; }
+.stock-search-form { display: flex; gap: 10px; margin: 12px 0 8px; }
+.stock-search-form input { min-width: 0; flex: 1; }
+.stock-search-form button { flex: 0 0 auto; }
+.stock-search-results { margin-bottom: 20px; }
+.stock-result { display: flex; flex-direction: column; gap: 8px; }
+.stock-result-title, .stock-result-quote, .stock-result-actions, .ticker-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stock-result-title strong { font-size: 17px; }
+.stock-result-name { color: var(--text-secondary); overflow-wrap: anywhere; }
+.stock-result-actions { margin-top: auto; }
+#row-ticker-name[hidden], #group-tx-name[hidden], .ticker-chips[hidden], .tx-symbol-results[hidden] { display: none; }
+.ticker-chips button { padding: 5px 10px; }
+.tx-symbol-results {
+  display: grid;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.tx-symbol-results button {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.tx-symbol-results button:is(:hover, :focus-visible) { background: var(--bg-card); }
+.tx-symbol-results button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.trade-total { color: var(--text-main); font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+.trade-details summary { cursor: pointer; color: var(--text-secondary); margin-bottom: 10px; }
+.trade-details .form-row { margin-top: 10px; }
+#tx-symbol-status:empty, #tx-total:empty { display: none; }
+@media (max-width: 860px) {
+  .mobile-buy { display: inline-flex; white-space: nowrap; }
+  .demo-mode .mobile-buy { display: none; }
+}
