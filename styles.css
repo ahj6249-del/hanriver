@@ -1231,3 +1231,8 @@ dialog::backdrop {
 #benchmark-legend button[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
 #benchmark-metrics { min-width: 100%; }
 #benchmark-metrics td { white-space: nowrap; }
+
+.watchlist-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-block: 10px; }
+.watchlist-toolbar label { flex-basis: 100%; color: var(--text-secondary); font-size: 12px; }
+.watchlist-toolbar select { min-width: 0; flex: 1 1 90px; }
+.watchlist-toolbar button { padding-inline: 9px; }

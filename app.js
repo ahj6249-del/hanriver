@@ -892,12 +892,46 @@ let stockSearchVersion = 0;
 let visibleStockTickers = [];
 let refreshingQuotes = false;
 
+function getWatchlists(settings) {
+  if (Array.isArray(settings.watchlists) && settings.watchlists.length) return settings.watchlists;
+  return [{
+    id: 'default', name: '기본 목록',
+    stocks: Array.isArray(settings.watchlist) ? settings.watchlist : []
+  }];
+}
+
+function activeWatchlist(settings, lists) {
+  return lists.find(list => list.id === settings.activeWatchlistId) || lists[0];
+}
+
+function saveWatchlists(settings, lists, activeId) {
+  const updated = {
+    ...settings,
+    watchlists: lists,
+    activeWatchlistId: activeId,
+    watchlist: lists.find(list => list.id === 'default')?.stocks || []
+  };
+  try {
+    saveSettings(updated);
+  } catch {
+    showToast('관심종목 목록을 저장하지 못했습니다.');
+    return false;
+  }
+  state.settings = updated;
+  return true;
+}
+
 async function renderStocks() {
   const container = document.getElementById('stock-search-results');
   const status = document.getElementById('stock-search-status');
   const searchForm = document.getElementById('stock-search-form');
-  const watchlist = Array.isArray(state.settings.watchlist) ? state.settings.watchlist.filter(stock =>
-    stock && typeof stock.ticker === 'string' && TICKER_PATTERN.test(stock.ticker)) : [];
+  const lists = getWatchlists(state.settings);
+  const selected = activeWatchlist(state.settings, lists);
+  const select = document.getElementById('watchlist-select');
+  select.replaceChildren(...lists.map(list => new Option(list.name, list.id)));
+  select.value = selected.id;
+  const watchlist = selected.stocks.filter(stock =>
+    stock && typeof stock.ticker === 'string' && TICKER_PATTERN.test(stock.ticker));
   const watched = new Set(watchlist.map(stock => stock.ticker));
   const watchOnly = state.watchOnly;
   const query = searchForm.querySelector('input').value.trim();
@@ -941,7 +975,7 @@ async function renderStocks() {
     return `
       <article class="card stock-result">
         <div class="stock-result-title"><strong>${ticker}</strong><span class="muted">${escapeHTML(market)}</span>
-          <button type="button" class="btn-secondary watch-toggle" data-ticker="${ticker}" aria-label="${ticker} 관심종목" aria-pressed="${isWatched}">${isWatched ? '★' : '☆'}</button>
+          <button type="button" class="btn-secondary watch-toggle" data-ticker="${ticker}" aria-label="${ticker} 관심종목" title="${escapeHTML(selected.name)} ${isWatched ? '에서 해제' : '에 추가'}" aria-pressed="${isWatched}">${isWatched ? '★' : '☆'}</button>
         </div>
         <div class="stock-result-name">${escapeHTML(stock.name)}</div>
         <div class="stock-result-quote" title="${escapeHTML(quote ? quoteLabel(quote) : '시세 없음')}">
@@ -963,19 +997,17 @@ async function renderStocks() {
     button.onclick = async () => {
       const stock = results.find(item => item.ticker === button.dataset.ticker);
       const settings = getSettings();
-      const saved = Array.isArray(settings.watchlist) ? settings.watchlist.filter(Boolean) : [];
+      const lists = getWatchlists(settings);
+      const target = lists.find(list => list.id === selected.id);
+      if (!target) return;
+      const saved = target.stocks.filter(Boolean);
       const exists = saved.some(item => item.ticker === stock.ticker);
-      settings.watchlist = exists ? saved.filter(item => item.ticker !== stock.ticker) : [
+      const stocks = exists ? saved.filter(item => item.ticker !== stock.ticker) : [
         ...saved, { ticker: stock.ticker, name: stock.name === '티커 직접 입력' ? '' : stock.name,
           exchange: stock.exchange, etf: stock.etf }
       ];
-      try {
-        saveSettings(settings);
-      } catch {
-        showToast('관심종목을 저장하지 못했습니다.');
-        return;
-      }
-      state.settings = settings;
+      const updated = lists.map(list => list.id === target.id ? { ...list, stocks } : list);
+      if (!saveWatchlists(settings, updated, target.id)) return;
       await renderStocks();
       const toggles = [...container.querySelectorAll('.watch-toggle')];
       (toggles.find(item => item.dataset.ticker === stock.ticker) ||
@@ -1975,6 +2007,52 @@ function initEvents() {
   document.getElementById('btn-header-settings')?.addEventListener('click', () => switchView('settings'));
 
   // 종목 검색
+  const watchlistSelect = document.getElementById('watchlist-select');
+  watchlistSelect.addEventListener('change', () => {
+    const settings = getSettings();
+    saveWatchlists(settings, getWatchlists(settings), watchlistSelect.value);
+    renderStocks();
+  });
+
+  const watchlistDialog = document.getElementById('watchlist-dialog');
+  const watchlistName = document.getElementById('watchlist-name');
+  let editingWatchlistId = '';
+  const openWatchlistDialog = editing => {
+    const settings = getSettings();
+    const current = activeWatchlist(settings, getWatchlists(settings));
+    editingWatchlistId = editing ? current.id : '';
+    document.getElementById('watchlist-dialog-title').textContent = editing ? '목록 이름 변경' : '관심종목 목록 추가';
+    watchlistName.value = editing ? current.name : '';
+    watchlistName.setCustomValidity('');
+    watchlistDialog.showModal();
+    watchlistName.focus();
+    if (editing) watchlistName.select();
+  };
+  document.getElementById('watchlist-add').addEventListener('click', () => openWatchlistDialog(false));
+  document.getElementById('watchlist-rename').addEventListener('click', () => openWatchlistDialog(true));
+  document.getElementById('watchlist-cancel').addEventListener('click', () => watchlistDialog.close());
+  watchlistName.addEventListener('input', () => watchlistName.setCustomValidity(''));
+  document.getElementById('watchlist-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const settings = getSettings();
+    const lists = getWatchlists(settings);
+    const name = watchlistName.value.trim();
+    const taken = lists.some(list => list.id !== editingWatchlistId &&
+      list.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+    if (!name || taken) {
+      watchlistName.setCustomValidity(taken ? '이미 있는 목록 이름입니다.' : '목록 이름을 입력해주세요.');
+      watchlistName.reportValidity();
+      return;
+    }
+    const id = editingWatchlistId || crypto.randomUUID();
+    const updated = editingWatchlistId ?
+      lists.map(list => list.id === id ? { ...list, name } : list) :
+      [...lists, { id, name, stocks: [] }];
+    if (!saveWatchlists(settings, updated, id)) return;
+    watchlistDialog.close();
+    renderStocks();
+  });
+
   for (const id of ['stock-mode-search', 'stock-mode-watch']) {
     document.getElementById(id).addEventListener('click', () => {
       state.watchOnly = id === 'stock-mode-watch';

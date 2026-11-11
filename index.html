@@ -417,6 +417,12 @@
               <button type="button" class="btn-secondary" id="stock-mode-search" aria-pressed="true">종목 검색</button>
               <button type="button" class="btn-secondary" id="stock-mode-watch" aria-pressed="false">관심종목</button>
             </div>
+            <div class="watchlist-toolbar">
+              <label for="watchlist-select">관심종목 목록</label>
+              <select id="watchlist-select" class="form-select"></select>
+              <button type="button" class="btn-secondary" id="watchlist-add">목록 추가</button>
+              <button type="button" class="btn-secondary" id="watchlist-rename">이름 변경</button>
+            </div>
             <form id="stock-search-form" class="stock-search-form">
               <input type="search" id="stock-search-input" aria-label="미국 주식·ETF 검색" class="form-input" placeholder="티커 또는 회사명 (예: VOO, Costco, 브로드컴)" autocomplete="off">
               <button class="btn-primary" type="submit">검색</button>
@@ -670,6 +676,20 @@
   </div>
 
   <!-- 모달: 거래 추가/수정 다이얼로그 -->
+  <dialog id="watchlist-dialog" class="custom-modal" aria-labelledby="watchlist-dialog-title">
+    <form id="watchlist-form">
+      <div class="modal-header"><h3 id="watchlist-dialog-title">관심종목 목록 추가</h3></div>
+      <div class="modal-body form-group">
+        <label for="watchlist-name">목록 이름</label>
+        <input id="watchlist-name" class="form-input" maxlength="30" required autocomplete="off">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="watchlist-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="modal-transaction" class="custom-modal" aria-labelledby="modal-tx-title">
     <form id="form-transaction" method="dialog">
       <div class="modal-header">
