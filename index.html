@@ -88,7 +88,6 @@
             <option value="default">메인 투자계좌</option>
             <option value="growth">공격형 모멘텀 계좌</option>
             <option value="dividend">배당·가치주 계좌</option>
-            <option value="demo">예시 계좌 (읽기 전용)</option>
           </select>
         </div>
         <div class="header-right">
@@ -106,15 +105,11 @@
           <button class="btn-header-action" id="btn-header-settings" title="설정">
             <span>⚙️</span> <span class="hide-mobile">설정</span>
           </button>
-          <button class="btn-header-action" id="btn-load-sample-top" style="border-color: rgba(16,185,129,0.3); color: var(--accent-emerald);">
-            예시 보기
-          </button>
         </div>
       </header>
 
       <!-- 본문 컨텐츠 -->
       <main class="content-area">
-        <p class="data-notice" id="demo-notice" role="status" hidden>예시 계좌 · 가상 거래와 예시 시세를 보여줍니다.</p>
         <!-- 1. 대시보드 뷰 -->
         <section id="view-dashboard" class="view-section active">
           <!-- 연간 목표 달성 프로그레스 배너 -->
@@ -534,7 +529,6 @@
           <div class="card">
             <h3 class="card-title">데이터 백업 및 초기화</h3>
             <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px;">
-              <button class="btn-primary" id="btn-load-sample">읽기 전용 예시 계좌 보기</button>
               <button class="btn-secondary" id="btn-export-json">💾 전체 데이터 백업 (JSON)</button>
               <button class="btn-secondary" id="btn-import-json-trigger">📂 백업 파일 복원</button>
               <input type="file" id="json-file-input" accept=".json" style="display: none;">
@@ -559,6 +553,9 @@
       <button type="button" class="mobile-nav-btn" data-view="stocks">
         <span class="icon" aria-hidden="true">⌕</span><span>종목 검색</span>
       </button>
+      <button type="button" class="mobile-nav-btn" data-view="stocks" data-stock-mode="watch">
+        <span class="icon watch-nav-icon" aria-hidden="true">★</span><span>관심종목</span>
+      </button>
       <details id="mobile-more" class="mobile-more">
         <summary class="mobile-nav-btn"><span class="icon" aria-hidden="true">···</span><span>더보기</span></summary>
         <div class="mobile-more-panel">
@@ -566,7 +563,6 @@
           <button type="button" data-view="habits">매매 습관</button>
           <button type="button" data-view="journal">복기 노트</button>
           <button type="button" data-view="settings">설정</button>
-          <button type="button" id="mobile-demo">예시 계좌</button>
           <button type="button" id="mobile-install">앱 설치</button>
         </div>
       </details>

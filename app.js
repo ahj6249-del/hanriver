@@ -41,13 +41,12 @@ import {
   refreshAllQuotes
 } from './api.js';
 
-const demo = getSampleData();
+// Keep filtering the sample rows that older releases wrote into the real ledger.
+const legacySamples = getSampleData();
 const DEFAULT_ACCOUNT = 'default';
-const DEMO_ACCOUNT = 'demo';
 
 function quoteLabel(quote) {
   if (!quote) return '시세 없음 · 평단 기준 추정';
-  if (quote.source === '예시 시세') return quote.source;
   const timestamp = Date.parse(quote.updatedAt);
   if (!Number.isFinite(timestamp)) return quote.source ? quote.source + ' · 기준 시각 미확인' : '저장 시세 · 기준 날짜 미확인';
   const time = new Intl.DateTimeFormat('ko-KR', {
@@ -122,21 +121,15 @@ async function refreshState() {
   const [transactions, journal] = await Promise.all([getAllTransactions(), getAllJournalNotes()]);
   if (version !== refreshVersion) return;
 
-  const isDemo = state.accountId === DEMO_ACCOUNT;
   const belongsToAccount = row => (row.accountId || DEFAULT_ACCOUNT) === state.accountId;
-  state.transactions = isDemo ? demo.transactions : transactions.filter(row =>
-    belongsToAccount(row) && !isLegacySample(row, demo.transactions));
-  state.journalNotes = isDemo ? demo.journal : journal.filter(row =>
-    belongsToAccount(row) && !isLegacySample(row, demo.journal));
+  state.transactions = transactions.filter(row =>
+    belongsToAccount(row) && !isLegacySample(row, legacySamples.transactions));
+  state.journalNotes = journal.filter(row =>
+    belongsToAccount(row) && !isLegacySample(row, legacySamples.journal));
   state.settings = getSettings();
-  state.prices = getStoredPrices(isDemo);
+  state.prices = getStoredPrices();
   document.body.classList.toggle('theme-korean', state.settings.colorMode === 'korean');
-  document.body.classList.toggle('demo-mode', isDemo);
-  document.getElementById('demo-notice').hidden = !isDemo;
   document.getElementById('account-select').value = state.accountId;
-  document.getElementById('btn-load-sample-top').textContent = isDemo ? '예시 닫기' : '예시 보기';
-  document.getElementById('mobile-demo').textContent = isDemo ? '예시 계좌 닫기' : '예시 계좌 보기';
-  document.getElementById('btn-load-sample').textContent = isDemo ? '예시 계좌 닫기' : '예시 계좌 보기';
 
   state.portfolio = calculatePortfolio(state.transactions, state.prices, state.settings.fxRate);
   state.performance = calculatePerformanceMetrics(state.portfolio.closedTrades, state.portfolio);
@@ -157,7 +150,8 @@ function switchView(viewName) {
   const mobileMore = document.getElementById('mobile-more');
   mobileMore.open = false;
   for (const button of document.querySelectorAll('.mobile-nav [data-view]')) {
-    const active = button.dataset.view === viewName;
+    const active = button.dataset.view === viewName && (viewName !== 'stocks' ||
+      (button.dataset.stockMode === 'watch') === state.watchOnly);
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
@@ -414,7 +408,7 @@ function renderPortfolio() {
       const ticker = b.dataset.ticker;
       const curPrice = b.dataset.price;
       const newPrice = prompt(`${ticker}의 현재 주가를 입력하세요 (USD $):`, curPrice);
-      if (state.accountId !== DEMO_ACCOUNT && Number.isFinite(Number(newPrice)) && Number(newPrice) > 0) {
+      if (Number.isFinite(Number(newPrice)) && Number(newPrice) > 0) {
         saveManualPrice(ticker, parseFloat(newPrice));
         showToast(`${ticker} 현재가가 $${parseFloat(newPrice).toFixed(2)}로 업데이트되었습니다.`);
         refreshState();
@@ -459,7 +453,7 @@ function linkedNoteMarkup(trade, notes, closedTrades) {
   const reason = note && (note.sellReason || note.buyReason || note.idea || note.improvements);
   return `${closed ? `<div class="trade-review-pnl ${closed.pnl >= 0 ? 'profit' : 'loss'}">실현손익 ${fmtMoney(closed.pnl, true)}</div>` : ''}
     ${reason ? `<div class="trade-review-snippet">${escapeHTML(reason)}</div>` : ''}
-    ${trade.ticker && state.accountId !== DEMO_ACCOUNT ? `<button type="button" class="btn-secondary btn-tx-review" data-id="${escapeHTML(trade.id)}">${note ? '복기 보기·수정' : '복기 쓰기'}</button>` : ''}`;
+    ${trade.ticker ? `<button type="button" class="btn-secondary btn-tx-review" data-id="${escapeHTML(trade.id)}">${note ? '복기 보기·수정' : '복기 쓰기'}</button>` : ''}`;
 }
 
 function renderTransactions() {
@@ -573,7 +567,6 @@ function renderTransactions() {
   // 데스크톱 + 모바일 공통 수정/삭제 이벤트 바인딩
   document.querySelectorAll('.btn-tx-del').forEach(b => {
     b.onclick = async () => {
-      if (state.accountId === DEMO_ACCOUNT) return;
       if (introducesInvalidClose(state.transactions.filter(t => t.id !== b.dataset.id))) {
         alert('이 거래를 삭제하면 이후 매도 또는 숏커버에 필요한 보유 수량이 부족해집니다.');
         return;
@@ -797,7 +790,6 @@ function renderJournal() {
 
   container.querySelectorAll('.btn-del-journal').forEach(b => {
     b.onclick = async () => {
-      if (state.accountId === DEMO_ACCOUNT) return;
       if (confirm('이 복기 노트를 삭제하시겠습니까?')) {
         await deleteJournalNote(b.dataset.id);
         showToast('복기 노트가 삭제되었습니다.');
@@ -822,6 +814,13 @@ async function renderStocks() {
   const watchOnly = state.watchOnly;
   const query = searchForm.querySelector('input').value.trim();
   searchForm.hidden = watchOnly;
+  for (const button of document.querySelectorAll('.mobile-nav [data-view="stocks"]')) {
+    const active = (button.dataset.stockMode === 'watch') === watchOnly;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+  document.getElementById('current-page-title').textContent = watchOnly ? '관심종목' : '종목 검색 & 시세';
   document.getElementById('stock-mode-search').setAttribute('aria-pressed', String(!watchOnly));
   document.getElementById('stock-mode-watch').setAttribute('aria-pressed', String(watchOnly));
   const version = ++stockSearchVersion;
@@ -1218,7 +1217,6 @@ function drawPnLDistributionChart() {
  * 모달 열기 및 제어
  */
 function openTransactionModal(type = 'BUY', ticker = '', editTx = null, stockName = '') {
-  if (state.accountId === DEMO_ACCOUNT) return;
   const modal = document.getElementById('modal-transaction');
   if (!modal) return;
 
@@ -1386,7 +1384,7 @@ function localDateTime() {
 }
 
 function openJournalModal(trade, existingNote) {
-  if (state.accountId === DEMO_ACCOUNT || (trade && (trade.accountId || DEFAULT_ACCOUNT) !== state.accountId)) return;
+  if (trade && (trade.accountId || DEFAULT_ACCOUNT) !== state.accountId) return;
   const modal = document.getElementById('modal-journal');
   const note = existingNote || (trade && state.journalNotes.find(item => item.transactionId === trade.id));
   const fields = {
@@ -1450,7 +1448,11 @@ function introducesInvalidClose(transactions) {
 function initEvents() {
   // 네비게이션 탭 클릭
   document.querySelectorAll('[data-view]').forEach(btn => {
-    btn.addEventListener('click', () => switchView(btn.dataset.view));
+    btn.addEventListener('click', () => {
+      if (btn.dataset.view === 'stocks') state.watchOnly = btn.dataset.stockMode === 'watch';
+      switchView(btn.dataset.view);
+      window.scrollTo(0, 0);
+    });
   });
 
   // 상단 새 거래 버튼
@@ -1467,10 +1469,6 @@ function initEvents() {
   document.getElementById('mobile-install').addEventListener('click', () => {
     mobileMore.open = false;
     document.getElementById('btn-install-pwa').click();
-  });
-  document.getElementById('mobile-demo').addEventListener('click', () => {
-    mobileMore.open = false;
-    document.getElementById('btn-load-sample-top').click();
   });
   document.getElementById('btn-mobile-buy')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-quick-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
@@ -1531,7 +1529,6 @@ function initEvents() {
   // 거래 폼 제출
   document.getElementById('form-transaction')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (state.accountId === DEMO_ACCOUNT) return;
     const id = document.getElementById('tx-id').value;
     const dateVal = document.getElementById('tx-date').value;
     const type = document.getElementById('tx-type').value;
@@ -1612,7 +1609,6 @@ function initEvents() {
   document.getElementById('form-journal')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('journal-id').value;
-    if (state.accountId === DEMO_ACCOUNT) return;
     const transactionId = document.getElementById('journal-transaction-id').value;
     const previous = state.journalNotes.find(item => item.id === id);
     const note = {
@@ -1686,20 +1682,6 @@ function initEvents() {
     URL.revokeObjectURL(url);
     showToast('CSV 파일이 다운로드되었습니다.');
   });
-
-  let previousAccount = DEFAULT_ACCOUNT;
-  const handleLoadSample = async () => {
-    if (state.accountId === DEMO_ACCOUNT) {
-      state.accountId = previousAccount;
-    } else {
-      previousAccount = state.accountId;
-      state.accountId = DEMO_ACCOUNT;
-    }
-    await refreshState();
-    switchView('dashboard');
-  };
-  document.getElementById('btn-load-sample')?.addEventListener('click', handleLoadSample);
-  document.getElementById('btn-load-sample-top')?.addEventListener('click', handleLoadSample);
 
   // JSON 백업 & 복원
   document.getElementById('btn-export-json')?.addEventListener('click', exportAllData);

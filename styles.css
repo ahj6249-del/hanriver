@@ -950,11 +950,6 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 
-.demo-mode :is(#btn-quick-new-tx, #btn-new-tx, #btn-add-tx-from-port, #btn-empty-port-add,
-  #btn-new-journal-note, #btn-empty-journal-add, .btn-port-action, .btn-price-edit, .btn-tx-edit,
-  .btn-tx-del, .btn-del-journal, .btn-quick-buy, #btn-export-csv) {
-  display: none;
-}
 
 .mobile-buy { display: none; }
 .stock-search-panel { margin-bottom: 14px; }
@@ -1008,7 +1003,6 @@ dialog::backdrop {
 #tx-quote-hint:empty, #tx-symbol-status:empty, #tx-total:empty { display: none; }
 @media (max-width: 860px) {
   .mobile-buy { display: inline-flex; white-space: nowrap; }
-  .demo-mode .mobile-buy { display: none; }
 }
 
 @media (max-width: 860px) {
@@ -1025,11 +1019,11 @@ dialog::backdrop {
   .currency-toggle { grid-column: 2; grid-row: 2; align-self: stretch; }
   .currency-btn { padding-inline: 7px; }
   #btn-header-refresh { grid-column: 3; grid-row: 2; min-height: 44px; justify-content: center; padding-inline: 8px; font-size: 16px; }
-  .top-header :is(#btn-install-pwa, #btn-header-settings, #btn-load-sample-top, .hide-mobile) { display: none; }
+  .top-header :is(#btn-install-pwa, #btn-header-settings, .hide-mobile) { display: none; }
   .content-area { min-width: 0; padding: 12px; }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     overflow: visible;
     padding-inline: max(4px, env(safe-area-inset-left, 0px)) max(4px, env(safe-area-inset-right, 0px));
     white-space: normal;
@@ -1045,6 +1039,7 @@ dialog::backdrop {
   }
   .mobile-nav-btn.active { background: rgba(16, 185, 129, .10); }
   .mobile-nav-btn .icon { font-size: 21px; line-height: 1; }
+  .mobile-nav-btn .watch-nav-icon { color: #fbbf24; }
   .mobile-more summary { list-style: none; }
   .mobile-more summary::-webkit-details-marker { display: none; }
   .mobile-more-panel {
@@ -1136,7 +1131,6 @@ dialog::backdrop {
 .trade-review:empty, .journal-trade-context:empty { display: none; }
 .trade-review-snippet { overflow-wrap: anywhere; color: var(--text-secondary); }
 .journal-trade-context { padding: 8px 10px; margin-bottom: 8px; background: var(--bg-input); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
-.demo-mode .btn-edit-journal { display: none; }
 #toast .btn-secondary { color: white; white-space: nowrap; }
 @media (max-width: 860px) {
   #toast { bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 10px); left: 12px; right: 12px; justify-content: space-between; padding: 8px 12px; }

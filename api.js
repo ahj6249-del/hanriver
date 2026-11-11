@@ -25,22 +25,8 @@ const LS_PRICES_CACHE = 'hanriver_prices_cache_v1';
 const LS_MANUAL_PRICES = 'hanriver_manual_prices_v1';
 
 // 캐시 불러오기
-export function getStoredPrices(includeExamples = false) {
+export function getStoredPrices() {
   const prices = {};
-  // 1. 기본 마스터 데이터
-  for (const s of includeExamples ? STOCK_DATABASE : []) {
-    prices[s.ticker] = {
-      price: s.price,
-      changePercent: s.changePercent,
-      previousClose: s.previousClose,
-      name: s.name,
-      source: '예시 시세',
-      updatedAt: '예시 시세'
-    };
-  }
-
-  if (includeExamples) return prices;
-
   // 2. 캐시된 API 시세
   try {
     const cached = localStorage.getItem(LS_PRICES_CACHE);
