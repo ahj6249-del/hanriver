@@ -33,6 +33,7 @@ const rows = (data?.table?.rows ?? data?.rows ?? []).map(row => ({
   ticker: row.symbol,
   name: row.name?.replace(/\s+Common Stock$/i, '').trim(),
   marketCap: numberFrom(row.marketCap),
+  price: numberFrom(row.lastsale),
   changePercent: numberFrom(row.pctchange)
 })).filter(row => row.ticker && row.name && row.marketCap > 0);
 rows.sort((a, b) => b.marketCap - a.marketCap);

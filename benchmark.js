@@ -93,7 +93,7 @@ function rebalance(book, strategy, prices, date, feeRate) {
   allocate(book, strategy, Math.max(0, nav - fees), prices, date, 0);
 }
 
-export function compareBenchmark({ transactions, prices, start, end, strategies, interval, feeRate, openingCash = 0 }) {
+export function compareBenchmark({ transactions, prices, start, end, strategies, interval, feeRate, openingCash = 0, accountName = '실제 계좌' }) {
   if (!validDate(start) || !validDate(end) || start >= end) throw new Error('시작일과 종료일을 확인해주세요.');
   const marketDays = Object.entries(prices.QQQ || {}).filter(([, row]) => row.adjusted).map(([date]) => date).sort();
   const baseline = marketDays.findLast(date => date <= start);
@@ -109,7 +109,7 @@ export function compareBenchmark({ transactions, prices, start, end, strategies,
   const startNav = actualAt(ledger.filter(trade => tradeDay(trade) <= baseline), prices, baseline);
   if (startNav < -EPSILON) throw new Error('시작일 순자산이 음수인 계좌는 비교할 수 없습니다.');
 
-  const series = [{ name: '실제 계좌', points: [], factor: 1, validReturn: true }];
+  const series = [{ name: accountName, points: [], factor: 1, validReturn: true }];
   for (const strategy of strategies) {
     series.push({ name: strategy.name, points: [], factor: 1, validReturn: true,
       strategy, cash: startNav, units: {}, invested: false });

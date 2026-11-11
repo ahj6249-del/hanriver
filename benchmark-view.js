@@ -190,7 +190,24 @@ function drawResult() {
   paintChart();
 }
 
-export function initBenchmark(getTransactions) {
+export function initBenchmark(getAccount) {
+  const drawCurrentPortfolio = () => {
+    const { name, portfolio } = getAccount();
+    if (!portfolio) return;
+    field('account-name').textContent = name;
+    field('current-nav').textContent = currency.format(portfolio.totalNav);
+    field('current-cash').textContent = currency.format(portfolio.cash);
+    const rows = [...portfolio.holdings].sort((a, b) => Math.abs(b.evalValue) - Math.abs(a.evalValue));
+    field('current-holdings').replaceChildren(...rows.map(holding => {
+      const side = holding.side === 'SHORT' ? ' 숏' : '';
+      return make('li', `${holding.ticker}${side} · ${currency.format(holding.evalValue)}`);
+    }));
+    field('current-quote-note').textContent = rows.some(holding => !holding.quote?.price) ?
+      '시세가 없는 종목은 평단으로 추정했습니다.' : '';
+    field('current-holdings').hidden = !rows.length;
+    field('use-current').disabled = portfolio.totalNav <= 0 || portfolio.cash < 0 ||
+      !rows.length || rows.some(holding => holding.side === 'SHORT');
+  };
   const run = () => {
     field('result').hidden = true;
     result = undefined;
@@ -199,8 +216,9 @@ export function initBenchmark(getTransactions) {
       return;
     }
     try {
+      const account = getAccount();
       result = compareBenchmark({
-        transactions: getTransactions(), prices, strategies,
+        transactions: account.transactions, accountName: account.name + ' (실제)', prices, strategies,
         start: field('start').value, end: field('end').value,
         interval: field('rebalance').value, feeRate: Number(field('fee').value) / 100,
         openingCash: Number(field('opening').value)
@@ -234,6 +252,19 @@ export function initBenchmark(getTransactions) {
     drawStrategies();
     if (prices) run();
   };
+  field('use-current').addEventListener('click', () => {
+    const { portfolio } = getAccount();
+    const weights = portfolio.holdings.map(holding => ({
+      ticker: holding.ticker,
+      weight: holding.evalValue / portfolio.totalNav * 100
+    }));
+    if (portfolio.cash > 0) weights.push({ ticker: 'CASH', weight: portfolio.cash / portfolio.totalNav * 100 });
+    try {
+      add('현재 보유 비중으로 가상 투자', weights);
+    } catch (error) {
+      field('status').textContent = error.message;
+    }
+  });
   field('presets').addEventListener('click', event => {
     const ticker = event.target.dataset.preset;
     if (!ticker) return;
@@ -367,6 +398,7 @@ export function initBenchmark(getTransactions) {
   drawStrategies();
   let restored = false;
   return async () => {
+    drawCurrentPortfolio();
     if (!restored) {
       restored = true;
       try {

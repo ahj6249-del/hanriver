@@ -1236,3 +1236,11 @@ dialog::backdrop {
 .watchlist-toolbar label { flex-basis: 100%; color: var(--text-secondary); font-size: 12px; }
 .watchlist-toolbar select { min-width: 0; flex: 1 1 90px; }
 .watchlist-toolbar button { padding-inline: 9px; }
+
+.benchmark-current-summary { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-block: 8px; }
+.benchmark-current-summary dt { color: var(--text-secondary); font-size: 12px; }
+.benchmark-current-summary dd { margin: 0; font-weight: 700; }
+#benchmark-current-holdings { padding: 0; margin-block: 8px; list-style: none; }
+#benchmark-current-holdings[hidden] { display: none; }
+#benchmark-current-holdings li { padding: 4px 8px; background: var(--bg-input); border-radius: var(--radius-sm); font-size: 12px; }
+#benchmark-use-current { margin-bottom: 8px; }

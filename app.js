@@ -205,6 +205,7 @@ async function renderMarketCap(refresh = false) {
       const color = change > 0 ? 'profit' : change < 0 ? 'loss' : 'muted';
       return `<tr><td>${index + 1}</td><td><strong>${escapeHTML(stock.ticker)}</strong>
         <span class="market-cap-name muted">${escapeHTML(stock.name)}</span></td>
+        <td class="tabular">${stock.price > 0 ? formatUSD(stock.price) : '—'}</td>
         <td class="tabular">${marketCapFormatter.format(stock.marketCap)}</td>
         <td class="tabular ${color}">${movement}</td></tr>`;
     }).join('');
@@ -215,7 +216,7 @@ async function renderMarketCap(refresh = false) {
   if (marketCapRequest || (marketCapSnapshot && !refresh)) return;
   button.disabled = true;
   const request = async url => {
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const response = await fetch(url, { cache: 'no-cache', signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error('Ranking unavailable');
     const snapshot = await response.json();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshot.asOf) || snapshot.rows?.length !== 100) {
@@ -234,7 +235,10 @@ async function renderMarketCap(refresh = false) {
     }
     try {
       const fresh = await request('https://raw.githubusercontent.com/ahj6249-del/hanriver/main/market-cap-top100.json');
-      if (!marketCapSnapshot || fresh.asOf >= marketCapSnapshot.asOf) marketCapSnapshot = fresh;
+      if (!marketCapSnapshot || fresh.asOf > marketCapSnapshot.asOf ||
+          (fresh.asOf === marketCapSnapshot.asOf && fresh.rows.some(stock => stock.price > 0))) {
+        marketCapSnapshot = fresh;
+      }
       draw(marketCapSnapshot);
     } catch {
       if (marketCapSnapshot) status.textContent += ' · 저장된 순위';
@@ -1616,7 +1620,11 @@ function introducesInvalidClose(transactions) {
 let renderBenchmark;
 
 function initEvents() {
-  renderBenchmark = initBenchmark(() => state.transactions);
+  renderBenchmark = initBenchmark(() => ({
+    transactions: state.transactions,
+    portfolio: state.portfolio,
+    name: document.getElementById('account-select').selectedOptions[0]?.textContent || '실제 계좌'
+  }));
   // 네비게이션 탭 클릭
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {

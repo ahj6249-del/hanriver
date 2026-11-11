@@ -445,6 +445,17 @@
         </section>
 
         <section id="view-benchmark" class="view-section">
+          <div class="card benchmark-result-card">
+            <h3 class="card-title">현재 포트폴리오</h3>
+            <p id="benchmark-account-name"></p>
+            <dl class="benchmark-current-summary">
+              <div><dt>순자산</dt><dd id="benchmark-current-nav">—</dd></div>
+              <div><dt>현금 잔고</dt><dd id="benchmark-current-cash">—</dd></div>
+            </dl>
+            <ul id="benchmark-current-holdings" class="benchmark-controls" hidden></ul>
+            <p id="benchmark-current-quote-note" class="muted"></p>
+            <p class="muted">위 계좌 선택에서 비교할 계좌를 바꿀 수 있어요. 과거 가격 CSV를 불러오면 실제 거래내역과 QQQ를 비교합니다.</p>
+          </div>
           <form id="benchmark-form" class="card benchmark-form">
             <div class="form-row">
               <div class="form-group"><label for="benchmark-start">시작일</label><input class="form-input" type="date" id="benchmark-start" required></div>
@@ -466,6 +477,7 @@
             </div>
             <div>
               <h3 class="card-title">비교 포트폴리오</h3>
+              <button type="button" class="btn-secondary" id="benchmark-use-current" disabled>현재 보유 비중으로 가상 투자 추가</button>
               <ul id="benchmark-strategies" class="benchmark-controls"></ul>
               <div id="benchmark-presets" class="benchmark-controls">
                 <button class="btn-secondary" type="button" data-preset="SPY">SPY</button>
@@ -541,7 +553,7 @@
             </div>
             <div class="table-container">
               <table class="market-cap-table">
-                <thead><tr><th>순위</th><th>종목</th><th>시가총액</th><th>당일 등락률</th></tr></thead>
+                <thead><tr><th>순위</th><th>종목</th><th>주가(USD)</th><th>시가총액</th><th>당일 등락률</th></tr></thead>
                 <tbody id="market-cap-rows"></tbody>
               </table>
             </div>
