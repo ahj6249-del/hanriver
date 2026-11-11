@@ -1197,6 +1197,16 @@ dialog::backdrop {
   .holding-entry > summary { min-height: 44px; cursor: pointer; }
   .holding-entry > summary::-webkit-details-marker { display: none; }
   .holding-summary-labels { color: var(--text-secondary); font-size: 11px; }
+  .holding-entry .holding-summary { row-gap: 1px; }
+  .holding-basis {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
   .holding-entry { border-top: 1px solid var(--border-color); }
   .holding-entry[open] .holding-chevron { display: inline-block; transform: rotate(180deg); }
   .holding-symbol small { display: inline-block; margin-left: 4px; color: var(--text-secondary); }

@@ -362,6 +362,7 @@ function renderPortfolio() {
         <details class="holding-entry"${showDetails ? ' open' : ''}>
           <summary class="holding-summary">
             <span class="holding-symbol"><strong>${escapeHTML(h.ticker)}</strong>${h.side === 'SHORT' ? '<small>숏</small>' : ''}</span>
+            <span class="holding-basis">보유 ${formatQty(h.qty)}주 · 평단 ${fmtMoney(h.costBasis)}</span>
             <span class="tabular">${fmtMoney(h.evalValue)}</span>
             <span class="tabular ${isProfit ? 'profit' : 'loss'}">${formatPercent(h.returnRate, true)} <span class="holding-chevron" aria-hidden="true">⌄</span></span>
           </summary>
