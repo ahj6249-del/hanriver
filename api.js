@@ -95,6 +95,31 @@ export async function testFinnhubKey(apiKey) {
 /**
  * 여러 종목 시세 일괄 갱신
  */
+export async function checkFinnhubHistory(apiKey) {
+  if (!apiKey?.trim()) return '설정에서 Finnhub 키를 연결해주세요.';
+  const to = Math.floor(Date.now() / 1000);
+  const query = new URLSearchParams({
+    symbol: 'QQQ', resolution: 'D', from: String(to - 30 * 86400), to: String(to), token: apiKey.trim()
+  });
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/stock/candle?${query}`, {
+      signal: AbortSignal.timeout(10000)
+    });
+    if (response.status === 403 || response.status === 401) {
+      return '현재 Finnhub 키로 QQQ 과거 일봉에 접근할 수 없습니다. 계정의 과거 시세 권한을 확인해주세요.';
+    }
+    if (response.status === 429) return 'Finnhub 호출 한도에 도달했습니다. 잠시 후 다시 확인해주세요.';
+    if (!response.ok) return 'Finnhub에서 과거 일봉 확인에 실패했습니다.';
+    const data = await response.json();
+    if (data.s === 'ok' && data.t?.length > 0 && data.c?.length === data.t.length) {
+      return `QQQ 일봉 ${data.t.length}개를 받았습니다. 배당·분할 조정 가격은 별도 확인이 필요합니다.`;
+    }
+    return 'Finnhub가 해당 기간의 QQQ 일봉을 반환하지 않았습니다.';
+  } catch {
+    return 'Finnhub 응답을 읽지 못했습니다. 네트워크 연결을 확인해주세요.';
+  }
+}
+
 export async function refreshAllQuotes(tickers, settings = {}) {
   const results = {};
   const cleanTickers = Array.from(new Set(tickers.map(t => t.toUpperCase().trim()))).filter(Boolean);

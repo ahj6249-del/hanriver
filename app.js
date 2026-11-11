@@ -1624,7 +1624,7 @@ function initEvents() {
     transactions: state.transactions,
     portfolio: state.portfolio,
     name: document.getElementById('account-select').selectedOptions[0]?.textContent || '실제 계좌'
-  }));
+  }), () => getSettings().apiKeyFinnhub);
   // 네비게이션 탭 클릭
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {

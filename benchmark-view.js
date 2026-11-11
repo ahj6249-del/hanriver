@@ -1,6 +1,6 @@
 import { getBenchmarkPrices, saveBenchmarkPrices } from './storage.js';
 import { compareBenchmark, readBenchmarkPrices } from './benchmark.js';
-import { searchStock, TICKER_PATTERN } from './api.js';
+import { checkFinnhubHistory, searchStock, TICKER_PATTERN } from './api.js';
 
 const field = id => document.getElementById('benchmark-' + id);
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -190,7 +190,17 @@ function drawResult() {
   paintChart();
 }
 
-export function initBenchmark(getAccount) {
+export function initBenchmark(getAccount, getFinnhubKey) {
+  field('check-finnhub').addEventListener('click', async () => {
+    const button = field('check-finnhub');
+    button.disabled = true;
+    field('finnhub-status').textContent = 'QQQ 과거 일봉 권한 확인 중…';
+    try {
+      field('finnhub-status').textContent = await checkFinnhubHistory(getFinnhubKey());
+    } finally {
+      button.disabled = false;
+    }
+  });
   const drawCurrentPortfolio = () => {
     const { name, portfolio } = getAccount();
     if (!portfolio) return;
