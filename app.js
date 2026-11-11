@@ -1533,7 +1533,6 @@ function initEvents() {
     mobileMore.open = false;
     document.getElementById('btn-install-pwa').click();
   });
-  document.getElementById('btn-mobile-buy')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-quick-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-new-tx')?.addEventListener('click', () => openTransactionModal('BUY'));
   document.getElementById('btn-add-tx-from-port')?.addEventListener('click', () => openTransactionModal('BUY'));
