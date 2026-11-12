@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SOURCE_REVISION: b81908549624cfd941e975d6d52d9ec94233d80c
+      SOURCE_REVISION: 6bc0ec1b2861eef88c1dc45aa8913a0597864ede
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: b81908549624cfd941e975d6d52d9ec94233d80c
+          ref: 6bc0ec1b2861eef88c1dc45aa8913a0597864ede
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -38,6 +38,7 @@ jobs:
       - name: Check calculations and JavaScript syntax
         run: |
           node tests/holding-period.test.mjs
+          node tests/export-risk.test.mjs
           for file in app.js domain.js storage.js api.js benchmark.js benchmark-view.js sw.js; do
             node --check "$file"
           done
