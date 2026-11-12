@@ -121,6 +121,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
 
         if (pos) {
           pos.tradeCount++;
+          if (pos.qty === 0) pos.longOpenedAt = tx.date;
           // 이동평균 단가 계산 (기존 보유비용 + 이번 매수비용) / 총 수량
           const prevTotalCost = pos.costBasis * pos.qty;
           pos.qty += qty;
@@ -160,6 +161,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
           ticker,
           name: pos.name,
           side: 'LONG',
+          entryDate: pos.longOpenedAt,
           qty: sellQty,
           entryPrice,
           exitPrice: price,
@@ -176,6 +178,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
 
         if (pos) {
           pos.tradeCount++;
+          if (pos.shortQty === 0) pos.shortOpenedAt = tx.date;
           const prevShortVal = pos.shortPrice * pos.shortQty;
           pos.shortQty += qty;
           pos.shortPrice = pos.shortQty > 0 ? (prevShortVal + proceeds) / pos.shortQty : 0;
@@ -214,6 +217,7 @@ export function calculatePortfolio(transactions = [], currentPrices = {}, fxRate
           ticker,
           name: pos.name,
           side: 'SHORT',
+          entryDate: pos.shortOpenedAt,
           qty: coverQty,
           entryPrice,
           exitPrice: price,
@@ -473,7 +477,7 @@ export function calculateHabits(closedTrades = [], allTransactions = []) {
     SHORT_TERM: { label: '1~3일 (초단기)', count: 0, wins: 0, totalPnL: 0 },
     MEDIUM_TERM: { label: '4~7일 (스윙)', count: 0, wins: 0, totalPnL: 0 },
     MONTH: { label: '8~30일 (중기)', count: 0, wins: 0, totalPnL: 0 },
-    LONG_TERM: { label: '30일 이상 (장기)', count: 0, wins: 0, totalPnL: 0 }
+    LONG_TERM: { label: '31일 이상 (장기)', count: 0, wins: 0, totalPnL: 0 }
   };
 
   const sideStats = {
@@ -481,6 +485,8 @@ export function calculateHabits(closedTrades = [], allTransactions = []) {
     SHORT: { count: 0, wins: 0, totalPnL: 0 }
   };
 
+  const entryDates = closedTrades.some(trade => !trade.entryDate) ?
+    new Map(calculatePortfolio(allTransactions).closedTrades.map(trade => [trade.id, trade.entryDate])) : new Map();
   for (const trade of closedTrades) {
     // 롱/숏 성과
     const side = trade.side || 'LONG';
@@ -488,17 +494,19 @@ export function calculateHabits(closedTrades = [], allTransactions = []) {
     sideStats[side].totalPnL += trade.pnl;
     if (trade.pnl > 0) sideStats[side].wins++;
 
-    // 매수 거래 찾아 날짜 차이 계산
-    const relatedTx = allTransactions.find(t => t.ticker === trade.ticker && (t.type === 'BUY' || t.type === 'SHORT') && t.date <= trade.date);
-    let days = 0;
-    if (relatedTx) {
-      const d1 = new Date(relatedTx.date);
-      const d2 = new Date(trade.date);
-      days = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
-    }
+    // Holding period is the continuous position cycle, separately for long/short.
+    // Additions and partial closes retain its start; a full close resets it.
+    const entryDate = trade.entryDate || entryDates.get(trade.id);
+    const start = entryDate ? Date.parse(entryDate.slice(0, 10)) : NaN;
+    const end = Date.parse(trade.date.slice(0, 10));
+    const days = Number.isFinite(start) && Number.isFinite(end) ?
+      Math.max(0, Math.round((end - start) / 86400000)) : null;
 
     let bKey = 'DAY';
-    if (days === 0) bKey = 'DAY';
+    if (days === null) {
+      bKey = 'UNKNOWN';
+      buckets.UNKNOWN ||= { label: '보유기간 미확인', count: 0, wins: 0, totalPnL: 0 };
+    } else if (days === 0) bKey = 'DAY';
     else if (days <= 3) bKey = 'SHORT_TERM';
     else if (days <= 7) bKey = 'MEDIUM_TERM';
     else if (days <= 30) bKey = 'MONTH';

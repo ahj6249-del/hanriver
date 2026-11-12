@@ -13,14 +13,21 @@ let dbPromise = null;
 export function initDB() {
   if (dbPromise) return dbPromise;
 
-  dbPromise = new Promise((resolve, reject) => {
+  dbPromise = new Promise((resolve) => {
     if (!window.indexedDB) {
       console.warn('IndexedDB not supported, falling back to LocalStorage');
       resolve(null);
       return;
     }
 
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let request;
+    try {
+      request = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (error) {
+      console.warn('IndexedDB unavailable, falling back to LocalStorage', error);
+      resolve(null);
+      return;
+    }
 
     request.onupgradeneeded = (e) => {
       const db = e.target.result;
@@ -40,7 +47,12 @@ export function initDB() {
       }
     };
 
-    request.onsuccess = (e) => resolve(e.target.result);
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      db.onclose = () => { dbPromise = null; };
+      resolve(db);
+    };
     request.onerror = (e) => {
       console.error('IndexedDB open error:', e);
       resolve(null);
@@ -55,109 +67,118 @@ const LS_TX_KEY = 'hanriver_transactions_v1';
 const LS_JOURNAL_KEY = 'hanriver_journal_v1';
 const LS_SETTINGS_KEY = 'hanriver_settings_v1';
 
-export async function getAllTransactions() {
-  const db = await initDB();
-  if (db) {
-    return new Promise((resolve) => {
-      const tx = db.transaction('transactions', 'readonly');
-      const store = tx.objectStore('transactions');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const data = req.result || [];
-        // LocalStorage 동기화 백업
-        mirror(LS_TX_KEY, data);
-        resolve(data);
-      };
-      req.onerror = () => {
-        resolve(getFallbackTransactions());
-      };
-    });
-  }
-  return getFallbackTransactions();
-}
-
-function getFallbackTransactions() {
+// Keep deletion markers in both stores so recovery cannot resurrect deleted rows.
+// Older releases stored plain arrays; their records are merged without migration.
+function readBackup(key) {
   try {
-    const raw = localStorage.getItem(LS_TX_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const rows = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(rows) ? rows.filter(row => row && typeof row.id === 'string') : [];
   } catch {
     return [];
   }
 }
 
-function mirror(key, data) {
+const modifiedTime = row => Date.parse(row?.updatedAt || row?.createdAt) || 0;
+
+function mergeRecords(primary, backup) {
+  const merged = new Map(primary.map(row => [row.id, row]));
+  for (const row of backup) {
+    const existing = merged.get(row.id);
+    if (!existing || modifiedTime(row) > modifiedTime(existing) ||
+        (modifiedTime(row) === modifiedTime(existing) && row._deleted && !existing._deleted)) {
+      merged.set(row.id, row);
+    }
+  }
+  return merged;
+}
+
+function applyChange(records, change) {
+  if (!change) return;
+  const { id, record } = change;
+  const updatedAt = new Date(Math.max(Date.now(), modifiedTime(records.get(id)) + 1)).toISOString();
+  records.set(id, record ? { ...record, updatedAt, _deleted: false } :
+    { id, updatedAt, _deleted: true });
+}
+
+function mirror(key, records) {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(records));
   } catch (error) {
     console.warn('Local backup could not be updated', error);
   }
 }
 
-async function writeRecord(storeName, key, getFallback, id, record) {
+async function accessRecords(storeName, key, change) {
+  const backup = readBackup(key);
   const db = await initDB();
   if (!db) {
-    const list = getFallback().filter(item => item.id !== id);
-    if (record) list.push(record);
-    localStorage.setItem(key, JSON.stringify(list));
-    return;
+    const records = mergeRecords([], backup);
+    applyChange(records, change);
+    const rows = [...records.values()];
+    // In fallback mode this is the only durable copy: surface write failures.
+    if (change) localStorage.setItem(key, JSON.stringify(rows));
+    return rows;
   }
-  await new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    if (record) store.put(record);
-    else store.delete(id);
-    transaction.oncomplete = resolve;
-    transaction.onabort = () => reject(transaction.error || new Error('저장 작업이 중단되었습니다.'));
-  });
+  try {
+    return await new Promise((resolve, reject) => {
+      // Serialize recovery and writes in one transaction, including across tabs.
+      const transaction = db.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
+      let rows;
+      request.onsuccess = () => {
+        const primary = request.result || [];
+        const records = mergeRecords(primary, backup);
+        applyChange(records, change);
+        rows = [...records.values()];
+        const existing = new Map(primary.map(row => [row.id, row]));
+        for (const row of rows) {
+          if (row !== existing.get(row.id)) store.put(row);
+        }
+      };
+      transaction.oncomplete = () => {
+        mirror(key, rows);
+        resolve(rows);
+      };
+      transaction.onabort = () => reject(transaction.error || new Error('저장 작업이 중단되었습니다.'));
+    });
+  } catch (error) {
+    // Reads can still use the backup. Never acknowledge a failed primary write.
+    if (change) throw error;
+    return backup;
+  }
+}
+
+const liveRecords = rows => rows.filter(row => !row._deleted);
+
+export async function getAllTransactions() {
+  return liveRecords(await accessRecords('transactions', LS_TX_KEY));
 }
 
 export async function saveTransaction(item) {
   item.id ||= 'tx_' + crypto.randomUUID();
   item.createdAt ||= new Date().toISOString();
-  await writeRecord('transactions', LS_TX_KEY, getFallbackTransactions, item.id, item);
+  await accessRecords('transactions', LS_TX_KEY, { id: item.id, record: item });
   return item;
 }
 
 export async function deleteTransaction(id) {
-  await writeRecord('transactions', LS_TX_KEY, getFallbackTransactions, id);
+  await accessRecords('transactions', LS_TX_KEY, { id });
 }
 
 export async function getAllJournalNotes() {
-  const db = await initDB();
-  if (db) {
-    return new Promise((resolve) => {
-      const tx = db.transaction('journal', 'readonly');
-      const store = tx.objectStore('journal');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const data = req.result || [];
-        mirror(LS_JOURNAL_KEY, data);
-        resolve(data);
-      };
-      req.onerror = () => resolve(getFallbackJournal());
-    });
-  }
-  return getFallbackJournal();
-}
-
-function getFallbackJournal() {
-  try {
-    const raw = localStorage.getItem(LS_JOURNAL_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return liveRecords(await accessRecords('journal', LS_JOURNAL_KEY));
 }
 
 export async function saveJournalNote(note) {
   note.id ||= 'note_' + crypto.randomUUID();
   note.createdAt ||= new Date().toISOString();
-  await writeRecord('journal', LS_JOURNAL_KEY, getFallbackJournal, note.id, note);
+  await accessRecords('journal', LS_JOURNAL_KEY, { id: note.id, record: note });
   return note;
 }
 
 export async function deleteJournalNote(id) {
-  await writeRecord('journal', LS_JOURNAL_KEY, getFallbackJournal, id);
+  await accessRecords('journal', LS_JOURNAL_KEY, { id });
 }
 
 export function getSettings() {
