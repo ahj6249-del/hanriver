@@ -1729,6 +1729,198 @@ function openTradingViewModal(ticker) {
 }
 
 /**
+ * AI 분석용 텍스트 내보내기 모달 & 데이터 생성 컨트롤러
+ */
+let aiExportPeriod = 'today'; // 'today', '3d', '1w', '1m', 'all'
+
+function formatISODateString(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getAiPeriodRange(periodKey, refDate = new Date()) {
+  const end = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), 23, 59, 59, 999);
+  const start = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), 0, 0, 0, 0);
+
+  let label = '당일';
+  let tagText = '당일';
+
+  if (periodKey === 'today') {
+    label = `${formatISODateString(start)} (당일)`;
+    tagText = '당일';
+  } else if (periodKey === '3d') {
+    start.setDate(start.getDate() - 2);
+    label = `${formatISODateString(start)} ~ ${formatISODateString(end)} (최근 3일)`;
+    tagText = '최근 3일';
+  } else if (periodKey === '1w') {
+    start.setDate(start.getDate() - 6);
+    label = `${formatISODateString(start)} ~ ${formatISODateString(end)} (최근 1주일)`;
+    tagText = '최근 1주일';
+  } else if (periodKey === '1m') {
+    start.setDate(start.getDate() - 29);
+    label = `${formatISODateString(start)} ~ ${formatISODateString(end)} (최근 1달)`;
+    tagText = '최근 1달';
+  } else if (periodKey === 'all') {
+    start.setTime(0);
+    label = '전체 거래 기간';
+    tagText = '전체 기간';
+  }
+  return { start, end, label, tagText };
+}
+
+function generateAiExportPrompt(periodKey) {
+  const p = state.portfolio;
+  const { start, end, label, tagText } = getAiPeriodRange(periodKey);
+  const startTime = start.getTime();
+  const endTime = end.getTime();
+
+  // 거래 필터링 (최신순 정렬)
+  const filteredTxs = [...state.transactions].filter(t => {
+    const tTime = transactionTime(t.date);
+    if (!Number.isFinite(tTime)) return false;
+    return tTime >= startTime && tTime <= endTime;
+  }).sort((a, b) => transactionTime(b.date) - transactionTime(a.date));
+
+  const now = new Date();
+  const nowKST = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    dateStyle: 'medium',
+    timeStyle: 'medium'
+  }).format(now);
+
+  const notesByTrade = new Map((state.journalNotes || []).filter(note => note.transactionId).map(note => [note.transactionId, note]));
+  const closedById = new Map((p?.closedTrades || []).map(trade => [trade.id, trade]));
+
+  // 1. 포트폴리오 요약
+  let text = `# 📊 [한강아니면 한강뷰] 투자 포트폴리오 & 거래내역 리포트\n\n`;
+  text += `## 1. 포트폴리오 자산 요약\n`;
+  text += `- 기준 일시: ${nowKST} (KST)\n`;
+  if (p) {
+    const netAsset = p.totalNetAsset ?? 0;
+    const stockEval = p.totalStockEval ?? 0;
+    const cash = p.cash ?? 0;
+    const stockWeight = netAsset !== 0 ? ((stockEval / netAsset) * 100).toFixed(1) : '0.0';
+    const cashWeight = netAsset !== 0 ? ((cash / netAsset) * 100).toFixed(1) : '0.0';
+    const unrealized = p.totalUnrealizedPnL ?? 0;
+    const totalCost = stockEval - unrealized;
+    const unrealizedRate = totalCost > 0 ? ((unrealized / totalCost) * 100).toFixed(2) : '0.00';
+    const realized = p.totalRealizedPnL ?? 0;
+
+    text += `- 총 순자산: ${formatUSD(netAsset)}\n`;
+    text += `- 주식 평가액: ${formatUSD(stockEval)} (비중 ${stockWeight}%)\n`;
+    text += `- 현금 잔고: ${formatUSD(cash)} (비중 ${cashWeight}%)\n`;
+    text += `- 총 미실현 손익: ${unrealized >= 0 ? '+' : ''}${formatUSD(unrealized)} (${unrealized >= 0 ? '+' : ''}${unrealizedRate}%)\n`;
+    text += `- 누적 실현 손익: ${realized >= 0 ? '+' : ''}${formatUSD(realized)}\n`;
+    text += `- 총 입금액: ${formatUSD(p.totalDeposits ?? 0)} / 총 출금액: ${formatUSD(p.totalWithdrawals ?? 0)}\n\n`;
+  } else {
+    text += `- 계좌 포트폴리오 데이터가 아직 생성되지 않았습니다.\n\n`;
+  }
+
+  // 2. 현재 보유종목 현황
+  text += `## 2. 현재 보유종목 현황 (Holdings)\n`;
+  if (!p || !p.holdings || p.holdings.length === 0) {
+    text += `*현재 보유 중인 주식 포지션이 없습니다.*\n\n`;
+  } else {
+    text += `| 종목코드 | 종목명 | 포지션 | 보유수량 | 평균매수가 | 현재가 | 평가금액 | 미실현손익 | 수익률 | 포트비중 |\n`;
+    text += `|---|---|---|---|---|---|---|---|---|---|\n`;
+    for (const h of p.holdings) {
+      const sideLabel = h.side === 'LONG' ? '롱 (매수)' : '숏 (공매도)';
+      const qtyStr = `${formatQty(h.qty)}주`;
+      const costStr = formatUSD(h.costBasis);
+      const curStr = formatUSD(h.currentPrice);
+      const evalStr = formatUSD(h.evalValue);
+      const pnlSign = h.unrealizedPnL >= 0 ? '+' : '';
+      const pnlStr = `${pnlSign}${formatUSD(h.unrealizedPnL)}`;
+      const rateSign = h.returnRate >= 0 ? '+' : '';
+      const rateStr = `${rateSign}${h.returnRate.toFixed(2)}%`;
+      const weightStr = `${(h.weightPercent || 0).toFixed(1)}%`;
+      text += `| ${h.ticker} | ${h.name || h.ticker} | ${sideLabel} | ${qtyStr} | ${costStr} | ${curStr} | ${evalStr} | ${pnlStr} | ${rateStr} | ${weightStr} |\n`;
+    }
+    text += `\n`;
+  }
+
+  // 3. 지정 기간 거래내역
+  text += `## 3. 거래내역 (Transactions)\n`;
+  text += `- 조회 기간: ${label}\n`;
+  text += `- 해당 기간 거래 건수: ${filteredTxs.length}건\n\n`;
+
+  if (filteredTxs.length === 0) {
+    text += `*해당 기간 동안 체결된 신규 거래내역이 없습니다.*\n\n`;
+  } else {
+    text += `| 일시 | 거래유형 | 종목 | 체결수량 | 체결단가 | 거래금액 | 수수료/세금 | 실현손익 | 매매메모·복기 |\n`;
+    text += `|---|---|---|---|---|---|---|---|---|\n`;
+    for (const tx of filteredTxs) {
+      const typeLabel = TX_TYPE_LABELS[tx.type] || tx.type;
+      const ticker = tx.ticker || '-';
+      const qtyStr = tx.qty ? `${formatQty(tx.qty)}주` : '-';
+      const priceStr = tx.price ? formatUSD(tx.price) : (tx.amount ? formatUSD(tx.amount) : '-');
+      const totalAmount = tx.qty && tx.price ? tx.qty * tx.price : (tx.amount || tx.price || 0);
+      const totalAmtStr = totalAmount ? formatUSD(totalAmount) : '-';
+      const totalFee = (parseFloat(tx.fee) || 0) + (parseFloat(tx.tax) || 0);
+      const feeStr = totalFee > 0 ? formatUSD(totalFee) : '$0.00';
+
+      const closed = closedById.get(tx.id);
+      let pnlStr = '-';
+      if (closed) {
+        pnlStr = `${closed.pnl >= 0 ? '+' : ''}${formatUSD(closed.pnl)} (${closed.pnlPercent >= 0 ? '+' : ''}${closed.pnlPercent.toFixed(1)}%)`;
+      }
+
+      const note = notesByTrade.get(tx.id);
+      const noteParts = [];
+      if (tx.memo) noteParts.push(tx.memo);
+      if (note) {
+        if (note.buyReason) noteParts.push(`진입근거: ${note.buyReason}`);
+        if (note.sellReason) noteParts.push(`청산근거: ${note.sellReason}`);
+        if (note.idea) noteParts.push(`아이디어: ${note.idea}`);
+        if (note.improvements) noteParts.push(`개선점: ${note.improvements}`);
+      }
+      const memoStr = noteParts.length > 0 ? noteParts.join(' / ').replace(/\n/g, ' ') : '-';
+
+      text += `| ${tx.date} | ${typeLabel} | ${ticker} | ${qtyStr} | ${priceStr} | ${totalAmtStr} | ${feeStr} | ${pnlStr} | ${memoStr} |\n`;
+    }
+    text += `\n`;
+  }
+
+  // 4. AI 분석 및 평가 요청 프롬프트
+  text += `## 4. AI 투자 분석 & 평가 요청 (Prompt)\n`;
+  text += `위 포트폴리오 현황과 최근 거래내역을 바탕으로 아래 사항을 전문 금융 트레이더/투자 전략가 관점에서 객관적이고 구체적으로 분석해 줘:\n`;
+  text += `1. **포트폴리오 자산 배분 및 종목 집중도 리스크 점검**: 섹터/종목별 편중도 및 현금 비중의 적정성\n`;
+  text += `2. **최근 매매 타점 및 성과 평가**: 지정 기간 동안 체결된 매수/매도/숏 진입·청산 가격, 손익비(Risk/Reward), 매매 원칙 준수 여부\n`;
+  text += `3. **향후 포트폴리오 운용 및 리스크 관리 제언**: 현재 시장 상황을 감안한 분할 매수/매도 타겟, 익절/손절선 가이드, 리밸런싱 방향\n`;
+
+  return { text, count: filteredTxs.length, holdingsCount: p?.holdings?.length || 0, label, tagText };
+}
+
+function updateAiExportModal() {
+  const result = generateAiExportPrompt(aiExportPeriod);
+  const textarea = document.getElementById('ai-export-textarea');
+  if (textarea) textarea.value = result.text;
+
+  const rangeInfo = document.getElementById('ai-export-range-info');
+  if (rangeInfo) rangeInfo.textContent = `조회 기간: ${result.label}`;
+
+  const statsInfo = document.getElementById('ai-export-stats-info');
+  if (statsInfo) statsInfo.textContent = `보유 종목 ${result.holdingsCount}개 · 거래 ${result.count}건 포함`;
+
+  const periodTag = document.getElementById('ai-export-period-tag');
+  if (periodTag) periodTag.textContent = `${result.tagText} 설정됨`;
+
+  // 기간 버튼 활성화 스타일 갱신
+  document.querySelectorAll('.ai-export-period-buttons .btn-period').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === aiExportPeriod);
+  });
+}
+
+function openAiExportModal() {
+  aiExportPeriod = 'today'; // 별도 지정 없으면 당일 기본
+  updateAiExportModal();
+  const modal = document.getElementById('modal-ai-export');
+  if (modal) modal.showModal();
+}
+
+/**
  * 이벤트 리스너 등록
  */
 function introducesInvalidClose(transactions) {
@@ -2207,6 +2399,67 @@ function initEvents() {
   // TradingView 모달 닫기
   document.getElementById('btn-close-tv-modal')?.addEventListener('click', () => {
     document.getElementById('modal-tradingview')?.close();
+  });
+
+  // AI 분석용 데이터 내보내기 모달 트리거 및 이벤트 바인딩
+  document.getElementById('btn-open-ai-export')?.addEventListener('click', openAiExportModal);
+
+  document.querySelectorAll('.ai-export-period-buttons .btn-period').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      aiExportPeriod = e.currentTarget.dataset.period;
+      updateAiExportModal();
+    });
+  });
+
+  document.getElementById('btn-close-ai-export')?.addEventListener('click', () => {
+    document.getElementById('modal-ai-export')?.close();
+  });
+  document.getElementById('btn-close-ai-export-bottom')?.addEventListener('click', () => {
+    document.getElementById('modal-ai-export')?.close();
+  });
+
+  document.getElementById('btn-copy-ai-export')?.addEventListener('click', async () => {
+    const textarea = document.getElementById('ai-export-textarea');
+    if (!textarea) return;
+    const textToCopy = textarea.value;
+    const copyBtn = document.getElementById('btn-copy-ai-export');
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showToast('AI 분석용 텍스트가 클립보드에 복사되었습니다! AI 채팅에 붙여넣으세요.');
+      if (copyBtn) {
+        const origContent = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<span>✓</span> 복사 완료!';
+        copyBtn.style.background = '#10b981';
+        copyBtn.style.borderColor = '#10b981';
+        setTimeout(() => {
+          copyBtn.innerHTML = origContent;
+          copyBtn.style.background = '';
+          copyBtn.style.borderColor = '';
+        }, 2000);
+      }
+    } catch (err) {
+      textarea.select();
+      document.execCommand('copy');
+      showToast('텍스트가 복사되었습니다!');
+    }
+  });
+
+  document.getElementById('btn-download-ai-export')?.addEventListener('click', () => {
+    const textarea = document.getElementById('ai-export-textarea');
+    if (!textarea) return;
+    const text = textarea.value;
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const nowStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `hanriver-ai-report-${aiExportPeriod}-${nowStr}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('AI 분석 리포트 파일이 다운로드되었습니다.');
   });
 
   // PWA Service Worker 및 설치 프롬프트

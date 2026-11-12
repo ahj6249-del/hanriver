@@ -1279,3 +1279,36 @@ dialog::backdrop {
   #form-journal .form-input, #form-journal .form-select, #form-journal .form-textarea { font-size: 16px; }
   #form-journal .modal-footer .btn-primary { flex: 1; }
 }
+
+/* AI 분석 내보내기 모달 & 기간 버튼 */
+.btn-period {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  font-weight: 500;
+}
+.btn-period:hover {
+  border-color: var(--border-hover);
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
+}
+.btn-period.active {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+}
+@media (max-width: 768px) {
+  .portfolio-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+

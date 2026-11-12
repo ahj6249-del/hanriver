@@ -207,14 +207,19 @@
         <!-- 2. 내 포트폴리오 뷰 -->
         <section id="view-portfolio" class="view-section">
           <div class="card">
-            <div class="chart-header">
+            <div class="chart-header" style="flex-wrap: wrap; gap: 10px;">
               <div>
                 <h3 class="card-title" style="font-size: 16px;">보유 종목 현황 (Holdings)</h3>
                 <p class="muted" style="font-size: 12px;">이동평균법 기준 정확한 매입단가 및 미실현 손익</p>
               </div>
-              <button class="btn-header-action" id="btn-add-tx-from-port">
-                <span>＋</span> 종목 매수/매도
-              </button>
+              <div class="portfolio-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <button type="button" class="btn-secondary" id="btn-open-ai-export" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 12.5px; border-color: #8b5cf6; color: #a78bfa; font-weight: 500;">
+                  <span>🤖</span> AI 분석용 내보내기
+                </button>
+                <button class="btn-header-action" id="btn-add-tx-from-port">
+                  <span>＋</span> 종목 매수/매도
+                </button>
+              </div>
             </div>
             <div id="holdings-layout" role="group" aria-label="보유 종목 보기 방식" hidden>
               <button type="button" class="btn-secondary" id="holdings-layout-compact" aria-pressed="true">한눈에 보기</button>
@@ -925,6 +930,60 @@
     <div class="modal-body" style="padding: 12px; max-height: 85vh;">
       <div id="tradingview-modal-container" style="height: 540px; width: 100%; border-radius: 8px; overflow: hidden; background: #07090e;">
         <!-- TradingView 차트 동적 주입 -->
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 모달: AI 분석용 포트폴리오 & 거래내역 텍스트 내보내기 -->
+  <dialog id="modal-ai-export" class="custom-modal" aria-labelledby="modal-ai-export-title" style="max-width: 680px; width: 95%;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">🤖</span>
+        <div>
+          <h3 id="modal-ai-export-title" style="margin: 0; font-size: 16px;">AI 분석용 데이터 내보내기</h3>
+          <p class="muted" style="margin: 2px 0 0; font-size: 11.5px;">포트폴리오 현황과 기간별 거래내역을 AI 평가·분석 프롬프트로 추출합니다.</p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" id="btn-close-ai-export" aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 16px;">
+      <!-- 기간 선택 버튼 그룹 -->
+      <div class="form-group" style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="font-weight: 600; font-size: 12.5px;">거래내역 조회 기간 선택</label>
+          <span id="ai-export-period-tag" class="badge" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); font-size: 11px;">당일 설정됨</span>
+        </div>
+        <div class="ai-export-period-buttons" role="group" aria-label="조회 기간" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)); gap: 6px;">
+          <button type="button" class="btn-period active" data-period="today">당일</button>
+          <button type="button" class="btn-period" data-period="3d">최근 3일</button>
+          <button type="button" class="btn-period" data-period="1w">최근 1주일</button>
+          <button type="button" class="btn-period" data-period="1m">최근 1달</button>
+          <button type="button" class="btn-period" data-period="all">전체</button>
+        </div>
+      </div>
+
+      <!-- 요약 안내 바 -->
+      <div id="ai-export-status-bar" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+        <span id="ai-export-range-info" class="muted">기간: 당일</span>
+        <span id="ai-export-stats-info" style="font-weight: 600; color: var(--accent-emerald, #10b981);">보유 종목 0개 · 거래 0건</span>
+      </div>
+
+      <!-- 텍스트 영역 -->
+      <div class="form-group" style="margin-bottom: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label for="ai-export-textarea" style="font-size: 12px; font-weight: 600;">생성된 AI 프롬프트 텍스트</label>
+          <span class="muted" style="font-size: 11px;">복사 후 ChatGPT·Claude 등에 붙여넣으세요</span>
+        </div>
+        <textarea id="ai-export-textarea" class="form-input" style="width: 100%; height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11.5px; line-height: 1.5; resize: vertical; white-space: pre; padding: 12px; background: rgba(0, 0, 0, 0.3);" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <button type="button" class="btn-secondary" id="btn-download-ai-export" style="font-size: 12px;">💾 텍스트 파일 저장</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-secondary" id="btn-close-ai-export-bottom">닫기</button>
+        <button type="button" class="btn-primary" id="btn-copy-ai-export" style="font-weight: 600; background: #8b5cf6; border-color: #8b5cf6; display: inline-flex; align-items: center; gap: 6px;">
+          <span>📋</span> 클립보드 복사
+        </button>
       </div>
     </div>
   </dialog>
