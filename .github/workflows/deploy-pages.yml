@@ -106,15 +106,16 @@ jobs:
       - name: Verify production serves this revision
         run: |
           python3 - <<'PY'
-          import os, pathlib, time, urllib.request
-          files = ['app.js', 'domain.js', 'storage.js', 'sw.js']
+          import os, pathlib, time, subprocess
+          files = ['app.js', 'api.js', 'domain.js', 'storage.js', 'sw.js']
           for attempt in range(12):
               try:
                   for name in files:
                       url = f'https://hanriver-dmm.pages.dev/{name}?revision={os.environ["SOURCE_REVISION"]}'
-                      with urllib.request.urlopen(url, timeout=15) as response:
-                          if response.read() != pathlib.Path(name).read_bytes():
-                              raise ValueError(f'{name} still serves an older revision')
+                      response = subprocess.run(['curl', '--fail', '--silent', '--show-error',
+                          '--location', '--max-time', '15', url], capture_output=True, check=True)
+                      if response.stdout != pathlib.Path(name).read_bytes():
+                          raise ValueError(f'{name} still serves an older revision')
                   print('Production verified: https://hanriver-dmm.pages.dev/')
                   break
               except Exception as error:
