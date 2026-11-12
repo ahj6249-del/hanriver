@@ -1,4 +1,5 @@
 import { transactionTime, TX_TYPES } from './domain.js';
+import { getManualPrices, restoreManualPrices } from './api.js';
 
 /**
  * 한강아니면 한강뷰 (Hanriver) - Data Storage & Persistence Module
@@ -66,16 +67,32 @@ export function initDB() {
 const LS_TX_KEY = 'hanriver_transactions_v1';
 const LS_JOURNAL_KEY = 'hanriver_journal_v1';
 const LS_SETTINGS_KEY = 'hanriver_settings_v1';
+const LS_BENCHMARK_KEY = 'hanriver_benchmark_prices_v1';
+
+// One origin-wide lock also covers tabs that temporarily cannot use IndexedDB.
+// Without Web Locks, fallback read/modify/write remains synchronous after init.
+function withStorageLock(operation) {
+  return globalThis.navigator?.locks?.request ?
+    navigator.locks.request('hanriver.storage', operation) : operation();
+}
 
 // Keep deletion markers in both stores so recovery cannot resurrect deleted rows.
 // Older releases stored plain arrays; their records are merged without migration.
 function readBackup(key) {
+  let rows = [];
   try {
-    const rows = JSON.parse(localStorage.getItem(key) || '[]');
-    return Array.isArray(rows) ? rows.filter(row => row && typeof row.id === 'string') : [];
-  } catch {
-    return [];
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(saved)) rows = saved.filter(row => row && typeof row.id === 'string');
+  } catch { /* Individual fallback records can still recover a damaged snapshot. */ }
+  const journal = [];
+  for (const itemKey of Object.keys(localStorage)) {
+    if (!itemKey.startsWith(key + '.record.')) continue;
+    try {
+      const row = JSON.parse(localStorage.getItem(itemKey));
+      if (row && typeof row.id === 'string') journal.push(row);
+    } catch { /* Preserve the other readable records. */ }
   }
+  return [...mergeRecords(rows, journal).values()];
 }
 
 const modifiedTime = row => Date.parse(row?.updatedAt || row?.createdAt) || 0;
@@ -109,14 +126,23 @@ function mirror(key, records) {
 }
 
 async function accessRecords(storeName, key, change) {
-  const backup = readBackup(key);
+  return withStorageLock(() => accessRecordsUnlocked(storeName, key, change));
+}
+
+async function accessRecordsUnlocked(storeName, key, change) {
   const db = await initDB();
+  const backup = readBackup(key);
   if (!db) {
     const records = mergeRecords([], backup);
     applyChange(records, change);
     const rows = [...records.values()];
-    // In fallback mode this is the only durable copy: surface write failures.
-    if (change) localStorage.setItem(key, JSON.stringify(rows));
+    // Store each change independently before updating the legacy snapshot. A
+    // stale snapshot in another tab must never erase the only copy of a row.
+    if (change) {
+      localStorage.setItem(key + '.record.' + encodeURIComponent(change.id),
+        JSON.stringify(records.get(change.id)));
+      mirror(key, rows);
+    }
     return rows;
   }
   try {
@@ -128,7 +154,7 @@ async function accessRecords(storeName, key, change) {
       let rows;
       request.onsuccess = () => {
         const primary = request.result || [];
-        const records = mergeRecords(primary, backup);
+        const records = mergeRecords(primary, readBackup(key));
         applyChange(records, change);
         rows = [...records.values()];
         const existing = new Map(primary.map(row => [row.id, row]));
@@ -301,7 +327,9 @@ export async function exportAllData() {
 
   const data = {
     brand: '한강아니면 한강뷰 (Hanriver)',
-    version: '1.1',
+    version: '1.2',
+    manualPrices: getManualPrices(),
+    benchmarkPrices: await getBenchmarkPrices(),
     forwardBenchmarks: Object.fromEntries(Object.keys(localStorage)
       .filter(key => key.startsWith(forwardPrefix))
       .map(key => [key.slice(forwardPrefix.length), getForwardBenchmarks(key.slice(forwardPrefix.length))])),
@@ -365,7 +393,29 @@ function validSettings(settings) {
       settings[key] == null || (typeof settings[key] === 'number' && Number.isFinite(settings[key])));
 }
 
+function validManualPrices(prices) {
+  return isRecord(prices) && Object.entries(prices).every(([ticker, quote]) =>
+    /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(ticker) && isRecord(quote) &&
+    Number.isFinite(quote.price) && quote.price > 0 &&
+    (quote.previousClose == null || (Number.isFinite(quote.previousClose) && quote.previousClose > 0)) &&
+    (quote.changePercent == null || Number.isFinite(quote.changePercent)) &&
+    (quote.updatedAt == null || (typeof quote.updatedAt === 'string' && Number.isFinite(Date.parse(quote.updatedAt)))));
+}
+
+function validBenchmarkPrices(prices) {
+  const positive = n => Number.isFinite(n) && n > 0;
+  return isRecord(prices) && Object.entries(prices).every(([ticker, days]) =>
+    /^[A-Z0-9][A-Z0-9.:-]{0,24}$/.test(ticker) && isRecord(days) &&
+    Object.entries(days).every(([day, row]) => day.length === 10 && validDate(day) && isRecord(row) &&
+      (positive(row.close) || positive(row.adjusted)) &&
+      (row.close == null || positive(row.close)) && (row.adjusted == null || positive(row.adjusted))));
+}
+
 export async function clearAllData() {
+  return withStorageLock(clearAllDataUnlocked);
+}
+
+async function clearAllDataUnlocked() {
   const db = await initDB();
   if (db) {
     const stores = ['transactions', 'journal', 'settings'];
@@ -396,6 +446,12 @@ export async function importAllData(jsonData) {
   if (jsonData.settings != null && !validSettings(jsonData.settings)) {
     throw new Error('백업의 설정 형식을 확인해주세요.');
   }
+  if (jsonData.manualPrices != null && !validManualPrices(jsonData.manualPrices)) {
+    throw new Error('백업의 수동 시세 형식을 확인해주세요.');
+  }
+  if (jsonData.benchmarkPrices != null && !validBenchmarkPrices(jsonData.benchmarkPrices)) {
+    throw new Error('백업의 과거 가격 형식을 확인해주세요.');
+  }
   if (jsonData.forwardBenchmarks != null && !isRecord(jsonData.forwardBenchmarks)) {
     throw new Error('백업의 벤치마크 기록 형식을 확인해주세요.');
   }
@@ -416,6 +472,8 @@ export async function importAllData(jsonData) {
     const { apiKeyFinnhub, apiKeyTwelveData, ...settings } = jsonData.settings;
     saveSettings({ ...getSettings(), ...settings });
   }
+  if (jsonData.manualPrices != null) restoreManualPrices(jsonData.manualPrices);
+  if (jsonData.benchmarkPrices != null) await saveBenchmarkPrices(jsonData.benchmarkPrices);
   for (const [account, records] of forward) {
     const merged = new Map(getForwardBenchmarks(account).map(record => [record.id, record]));
     for (const record of records) {
@@ -430,22 +488,44 @@ export async function importAllData(jsonData) {
 
 
 export async function getBenchmarkPrices() {
-  const db = await initDB();
-  if (!db) return null;
-  return new Promise((resolve, reject) => {
-    const request = db.transaction('settings').objectStore('settings').get('benchmark-prices');
-    request.onsuccess = () => resolve(request.result?.value ?? null);
-    request.onerror = () => reject(request.error);
-  });
+  return withStorageLock(() => accessBenchmarkPrices());
 }
 
 export async function saveBenchmarkPrices(prices) {
+  return withStorageLock(() => accessBenchmarkPrices(prices));
+}
+
+async function accessBenchmarkPrices(prices) {
   const db = await initDB();
-  if (!db) throw new Error('IndexedDB unavailable');
+  let backup;
+  try { backup = JSON.parse(localStorage.getItem(LS_BENCHMARK_KEY)); } catch { /* Use primary copy. */ }
+  const change = previous => ({ key: 'benchmark-prices', value: prices,
+    updatedAt: new Date(Math.max(Date.now(), modifiedTime(previous) + 1)).toISOString() });
+  if (!db) {
+    if (prices !== undefined) {
+      backup = change(backup);
+      localStorage.setItem(LS_BENCHMARK_KEY, JSON.stringify(backup));
+    }
+    return backup?.value ?? null;
+  }
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('settings', 'readwrite');
-    transaction.objectStore('settings').put({ key: 'benchmark-prices', value: prices });
-    transaction.oncomplete = resolve;
-    transaction.onabort = () => reject(transaction.error);
+    const store = transaction.objectStore('settings');
+    const request = store.get('benchmark-prices');
+    let selected;
+    request.onsuccess = () => {
+      const primary = request.result;
+      selected = backup && (!primary || modifiedTime(backup) > modifiedTime(primary)) ? backup : primary;
+      if (prices !== undefined) selected = change(selected);
+      if (selected && selected !== primary) store.put(selected);
+    };
+    transaction.oncomplete = () => {
+      if (selected) mirror(LS_BENCHMARK_KEY, selected);
+      resolve(selected?.value ?? null);
+    };
+    transaction.onabort = () => {
+      if (prices === undefined) resolve(backup?.value ?? null);
+      else reject(transaction.error || new Error('과거 가격을 저장하지 못했습니다.'));
+    };
   });
 }
