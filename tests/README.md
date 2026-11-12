@@ -1,4 +1,10 @@
-# AI export regression checks
+# Regression checks
+
+Holding-period checks use only Node.js:
+
+```sh
+node tests/holding-period.test.mjs
+```
 
 Install Playwright in your development environment and its Chromium browser:
 
@@ -17,6 +23,7 @@ Run:
 
 ```sh
 node tests/ai-export.browser.cjs
+node tests/storage.browser.cjs
 ```
 
 Optional environment variables: `BASE_URL`, `CHROMIUM_EXECUTABLE` (system Chromium),
@@ -24,3 +31,7 @@ Optional environment variables: `BASE_URL`, `CHROMIUM_EXECUTABLE` (system Chromi
 Tests use isolated browser contexts and synthetic data; external HTTPS requests and
 service workers are blocked. Eight scenarios check dashboard/report agreement,
 short liabilities, returns, account filtering, future trades, and downloaded text.
+Storage checks cover transaction/journal fallback recovery, legacy backups,
+edit conflicts, deletion markers, immediate backups, parallel writes, quota errors,
+durable recovery, and clearing/reloading. Holding-period checks cover independent
+long/short cycles, reentries, partial closes, additions, splits and calendar days.

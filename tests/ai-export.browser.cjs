@@ -39,14 +39,15 @@ const cases = [
       await page.clock.setFixedTime(new Date('2026-11-12T12:00:00Z'));
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
-      await page.route('https://**/*', route => route.abort());
+      const base = process.env.BASE_URL || 'http://127.0.0.1:8000';
+      await page.route('https://**/*', route => new URL(route.request().url()).origin === new URL(base).origin ?
+        route.continue() : route.abort());
       // Allows the same tests to demonstrate the failure against a prior app.js.
       if (process.env.APP_JS_OVERRIDE) {
         await page.route('**/app.js', route => route.fulfill({
           contentType: 'text/javascript', body: readFileSync(process.env.APP_JS_OVERRIDE, 'utf8')
         }));
       }
-      const base = process.env.BASE_URL || 'http://127.0.0.1:8000';
       await page.goto(base);
       await page.waitForFunction(() => document.querySelector('#m-stock-count').textContent.includes('보유 중'));
       await page.evaluate(async rows => {
