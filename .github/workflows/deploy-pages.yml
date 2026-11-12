@@ -1,0 +1,92 @@
+name: Deploy verified Hanriver fixes to Cloudflare Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hanriver-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_REVISION: b81908549624cfd941e975d6d52d9ec94233d80c
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check deployment credentials
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo '::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in repository Settings > Secrets and variables > Actions.'
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: b81908549624cfd941e975d6d52d9ec94233d80c
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Check calculations and JavaScript syntax
+        run: |
+          node tests/holding-period.test.mjs
+          for file in app.js domain.js storage.js api.js benchmark.js benchmark-view.js sw.js; do
+            node --check "$file"
+          done
+
+      - name: Verify the existing production project
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          account = os.environ['CLOUDFLARE_ACCOUNT_ID'].strip()
+          url = f'https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects/hanriver-dmm'
+          request = urllib.request.Request(url, headers={
+              'Authorization': 'Bearer ' + os.environ['CLOUDFLARE_API_TOKEN'].strip()
+          })
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+          project = payload.get('result') or {}
+          if not payload.get('success') or project.get('subdomain') != 'hanriver-dmm.pages.dev':
+              raise SystemExit('The token/account must access the existing hanriver-dmm.pages.dev project.')
+          if project.get('production_branch') != 'main':
+              raise SystemExit('The existing production branch is not main. Check project settings before deployment.')
+          print('Verified production target: https://hanriver-dmm.pages.dev/')
+          PY
+
+      - name: Prepare public site files
+        run: |
+          mkdir .deploy
+          cp index.html app.js domain.js storage.js api.js benchmark.js benchmark-view.js \
+            styles.css sw.js us-symbols.json market-cap-top100.json manifest.webmanifest \
+            icon.svg icon-192.png icon-512.png .deploy/
+
+      - name: Deploy to the existing Pages project
+        run: npx --yes wrangler@4 pages deploy .deploy --project-name=hanriver-dmm --branch=main --commit-hash="$SOURCE_REVISION"
+
+      - name: Verify production serves this revision
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, time, urllib.request
+          files = ['app.js', 'domain.js', 'storage.js', 'sw.js']
+          for attempt in range(12):
+              try:
+                  for name in files:
+                      url = f'https://hanriver-dmm.pages.dev/{name}?revision={os.environ["SOURCE_REVISION"]}'
+                      with urllib.request.urlopen(url, timeout=15) as response:
+                          if response.read() != pathlib.Path(name).read_bytes():
+                              raise ValueError(f'{name} still serves an older revision')
+                  print('Production verified: https://hanriver-dmm.pages.dev/')
+                  break
+              except Exception as error:
+                  if attempt == 11:
+                      raise SystemExit(f'Production verification failed: {error}')
+                  time.sleep(5)
+          PY
