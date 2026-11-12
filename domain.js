@@ -564,3 +564,27 @@ export function formatQty(val) {
   if (!val || isNaN(val)) return '0';
   return parseFloat(val).toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
+
+/** Cash from short sales is encumbered; it is not a safe cash buffer. */
+export function assessCashBuffer(portfolio) {
+  const { cash = 0, totalNav = 0, holdings = [] } = portfolio || {};
+  const shortLiability = holdings.reduce((sum, h) => sum + Math.max(0, -h.evalValue), 0);
+  const cashRatio = totalNav > 0 ? cash / totalNav * 100 : null;
+  const status = !Number.isFinite(totalNav) || totalNav <= 0 ? 'unknown' :
+    shortLiability > 0 ? 'short' : cash < 0 ? 'deficit' :
+    cashRatio < 10 ? 'low' : cashRatio <= 30 ? 'buffer' : 'high';
+  return { status, cashRatio, shortLiability, cashAfterCover: cash - shortLiability };
+}
+
+/** Encode every CSV field uniformly, including quotes, commas and newlines. */
+export function transactionsToCSV(transactions) {
+  const headers = ['날짜', '유형', '티커', '종목명', '수량', '체결단가', '수수료', '세금', '메모', '금액', '분할비율', '계좌ID'];
+  const rows = transactions.map(t => {
+    const amount = t.amount ?? ([TX_TYPES.DEPOSIT, TX_TYPES.WITHDRAW, TX_TYPES.FEE].includes(t.type) ?
+      (t.price || t.fee || 0) : t.type === TX_TYPES.DIVIDEND ? (t.qty || 0) * (t.price || 0) : '');
+    return [t.date, t.type, t.ticker, t.name, t.qty ?? 0, t.price ?? 0, t.fee ?? 0, t.tax ?? 0,
+      t.memo, amount, t.type === TX_TYPES.SPLIT ? t.ratio : '', t.accountId || 'default'];
+  });
+  const cell = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
+  return '\uFEFF' + [headers, ...rows].map(row => row.map(cell).join(',')).join('\r\n');
+}

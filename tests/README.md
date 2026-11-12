@@ -4,6 +4,7 @@ Holding-period checks use only Node.js:
 
 ```sh
 node tests/holding-period.test.mjs
+node tests/export-risk.test.mjs
 ```
 
 Install Playwright in your development environment and its Chromium browser:
@@ -24,6 +25,7 @@ Run:
 ```sh
 node tests/ai-export.browser.cjs
 node tests/storage.browser.cjs
+node tests/audit-fixes.browser.cjs
 ```
 
 Optional environment variables: `BASE_URL`, `CHROMIUM_EXECUTABLE` (system Chromium),
@@ -35,3 +37,12 @@ Storage checks cover transaction/journal fallback recovery, legacy backups,
 edit conflicts, deletion markers, immediate backups, parallel writes, quota errors,
 durable recovery, and clearing/reloading. Holding-period checks cover independent
 long/short cycles, reentries, partial closes, additions, splits and calendar days.
+
+The audit regressions check fallback creation/edit/deletion with and without Web
+Locks, mixed primary/fallback writes from three tabs (10 rounds), successful and
+failed quote refreshes, backup version 1.2 round trips and legacy compatibility,
+input validation, historical-price fallback recovery, strict CSV parsing using
+Python's standard library, and short-sale cash warnings. API responses are mocked;
+no real API key is needed. New JSON backups retain manual quotes and historical
+CSV prices; API keys remain excluded. CSV adds amount, split ratio and account ID
+after its original columns.

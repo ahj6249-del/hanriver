@@ -58,13 +58,17 @@ export function saveManualPrice(ticker, price, changePercent = 0) {
   localStorage.setItem(LS_MANUAL_PRICES, JSON.stringify(manual));
 }
 
-function getManualPrices() {
+export function getManualPrices() {
   try {
     const raw = localStorage.getItem(LS_MANUAL_PRICES);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
+}
+
+export function restoreManualPrices(prices) {
+  localStorage.setItem(LS_MANUAL_PRICES, JSON.stringify({ ...getManualPrices(), ...prices }));
 }
 
 /**
@@ -148,9 +152,9 @@ export async function fetchStockQuote(ticker, settings = {}) {
       const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${cleanTicker}&token=${settings.apiKeyFinnhub}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.c && data.c > 0) {
+        if (Number.isFinite(Number(data.c)) && Number(data.c) > 0) {
           const quote = {
-            price: data.c,
+            price: Number(data.c),
             changePercent: data.dp || 0,
             previousClose: Number(data.pc) > 0 ? Number(data.pc) : null,
             source: 'Finnhub',
@@ -171,7 +175,7 @@ export async function fetchStockQuote(ticker, settings = {}) {
       const res = await fetch(`https://api.twelvedata.com/quote?symbol=${cleanTicker}&apikey=${settings.apiKeyTwelveData}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.close && !isNaN(data.close)) {
+        if (Number.isFinite(Number(data.close)) && Number(data.close) > 0) {
           const cur = parseFloat(data.close);
           const prev = Number(data.previous_close) > 0 ? Number(data.previous_close) : null;
           const chgPct = parseFloat(data.percent_change) || 0;
@@ -206,13 +210,17 @@ export async function fetchStockQuote(ticker, settings = {}) {
 }
 
 function updatePriceCache(ticker, quote) {
-  try {
-    const raw = localStorage.getItem(LS_PRICES_CACHE);
-    const cache = raw ? JSON.parse(raw) : {};
-    cache[ticker] = quote;
-    localStorage.setItem(LS_PRICES_CACHE, JSON.stringify(cache));
-  } catch (e) {
-    console.warn('Cache update error', e);
+  let cache;
+  try { cache = JSON.parse(localStorage.getItem(LS_PRICES_CACHE) || '{}'); }
+  catch { cache = {}; }
+  cache[ticker] = quote;
+  // A successful API refresh must become the price actually used by the UI.
+  // Throw on persistence failure so callers do not report a false refresh.
+  localStorage.setItem(LS_PRICES_CACHE, JSON.stringify(cache));
+  const manual = getManualPrices();
+  if (Object.hasOwn(manual, ticker)) {
+    delete manual[ticker];
+    localStorage.setItem(LS_MANUAL_PRICES, JSON.stringify(manual));
   }
 }
 

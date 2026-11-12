@@ -12,6 +12,8 @@ import {
   transactionTime,
   calculatePerformanceMetrics,
   calculateHabits,
+  assessCashBuffer,
+  transactionsToCSV,
   formatUSD,
   formatKRW,
   formatPercent,
@@ -768,8 +770,15 @@ function renderHabits() {
   const p = state.portfolio;
 
   const topHolding = p?.holdings?.reduce((top, holding) => !top || holding.weightPercent > top.weightPercent ? holding : top, null);
-  const cashRatio = p && p.totalNav > 0 ? (p.cash / p.totalNav) * 100 : 0;
-  const isHealthyCash = cashRatio >= 10 && cashRatio <= 30;
+  const cashRisk = assessCashBuffer(p);
+  const cashMessage = {
+    unknown: '순자산이 0 이하이거나 확인되지 않아 현금 비중에 따른 안정성 진단을 보류합니다.',
+    short: `현금에 공매도 매각 대금이 포함되어 있습니다. 공매도 상환 의무는 ${fmtMoney(cashRisk.shortLiability)}이며, 이를 차감한 현금은 ${fmtMoney(cashRisk.cashAfterCover)}입니다. 이 금액은 증권사의 출금 가능 금액과 다를 수 있고, 현금 잔고만으로 안정성을 판단할 수 없습니다.`,
+    deficit: '장부상 현금이 음수입니다. 누락된 입출금이나 차입·마진 사용 여부를 확인해주세요.',
+    low: '현금 비중이 10% 미만으로 낮아 급격한 변동성 발생 시 대응 여력이 제한될 수 있습니다.',
+    buffer: '현금 비중이 10~30% 범위입니다. 종목 집중도와 가격 변동 위험도 함께 확인해주세요.',
+    high: '현금 비중이 30%를 넘습니다. 현금 여유와 별개로 보유 종목의 손실 위험을 확인해주세요.'
+  }[cashRisk.status];
 
   let diagnosisHtml = `
     <div style="background: rgba(16, 185, 129, 0.08); border-left: 4px solid var(--accent-emerald); padding: 14px 18px; border-radius: var(--radius-sm);">
@@ -790,8 +799,8 @@ function renderHabits() {
     <div style="background: rgba(14, 165, 233, 0.08); border-left: 4px solid var(--accent-cyan); padding: 14px 18px; border-radius: var(--radius-sm);">
       <h4 style="font-size: 14px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 4px;">🛡️ 3. 자산 배분 건전성 & 현금 버퍼</h4>
       <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
-        현재 계좌 내 현금 비중은 <strong>${cashRatio.toFixed(1)}%</strong>이며, 최대 비중 종목은 <strong>${topHolding ? `${escapeHTML(topHolding.ticker)} (${topHolding.weightPercent.toFixed(1)}%)` : '없음'}</strong>입니다.
-        ${isHealthyCash ? '이상적인 10~30% 수준의 현금 완충 버퍼를 유지하고 있어 시장 급락 시 저가 매수 기회를 잡을 수 있습니다.' : (cashRatio < 10 ? '현금 비중이 10% 미만으로 낮아 급격한 변동성 발생 시 대응 여력이 제한될 수 있습니다.' : '현금 비중이 충분하여 안정적입니다.')}
+        장부 현금 비중은 <strong>${cashRisk.cashRatio == null ? '—' : cashRisk.cashRatio.toFixed(1) + '%'}</strong>이며, 최대 비중 종목은 <strong>${topHolding ? `${escapeHTML(topHolding.ticker)} (${topHolding.weightPercent.toFixed(1)}%)` : '없음'}</strong>입니다.
+        ${cashMessage}
       </p>
     </div>
   `;
@@ -2161,19 +2170,7 @@ function initEvents() {
       alert('내보낼 거래내역이 없습니다.');
       return;
     }
-    const headers = ['날짜', '유형', '티커', '종목명', '수량', '체결단가', '수수료', '세금', '메모'];
-    const rows = state.transactions.map(t => [
-      `"${t.date || ''}"`,
-      `"${t.type || ''}"`,
-      `"${t.ticker || ''}"`,
-      `"${t.name || ''}"`,
-      t.qty || 0,
-      t.price || 0,
-      t.fee || 0,
-      t.tax || 0,
-      `"${(t.memo || '').replace(/"/g, '""')}"`
-    ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = transactionsToCSV(state.transactions);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
