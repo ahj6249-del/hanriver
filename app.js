@@ -1780,7 +1780,7 @@ function generateAiExportPrompt(periodKey) {
   const filteredTxs = [...state.transactions].filter(t => {
     const tTime = transactionTime(t.date);
     if (!Number.isFinite(tTime)) return false;
-    return tTime >= startTime && tTime <= endTime;
+    return tTime >= startTime && tTime <= Math.min(endTime, Date.now());
   }).sort((a, b) => transactionTime(b.date) - transactionTime(a.date));
 
   const now = new Date();
@@ -1798,18 +1798,21 @@ function generateAiExportPrompt(periodKey) {
   text += `## 1. 포트폴리오 자산 요약\n`;
   text += `- 기준 일시: ${nowKST} (KST)\n`;
   if (p) {
-    const netAsset = p.totalNetAsset ?? 0;
-    const stockEval = p.totalStockEval ?? 0;
+    const netAsset = p.totalNav;
+    const shortLiability = p.holdings.filter(h => h.side === 'SHORT')
+      .reduce((sum, h) => sum - h.evalValue, 0);
+    const stockEval = p.totalStockEval - shortLiability;
     const cash = p.cash ?? 0;
     const stockWeight = netAsset !== 0 ? ((stockEval / netAsset) * 100).toFixed(1) : '0.0';
     const cashWeight = netAsset !== 0 ? ((cash / netAsset) * 100).toFixed(1) : '0.0';
     const unrealized = p.totalUnrealizedPnL ?? 0;
-    const totalCost = stockEval - unrealized;
+    const totalCost = p.holdings.reduce((sum, h) => sum + h.qty * h.costBasis, 0);
     const unrealizedRate = totalCost > 0 ? ((unrealized / totalCost) * 100).toFixed(2) : '0.00';
     const realized = p.totalRealizedPnL ?? 0;
 
     text += `- 총 순자산: ${formatUSD(netAsset)}\n`;
-    text += `- 주식 평가액: ${formatUSD(stockEval)} (비중 ${stockWeight}%)\n`;
+    text += `- 주식 평가액${shortLiability > 0 ? ' (롱 − 숏)' : ''}: ${formatUSD(stockEval)} (비중 ${stockWeight}%)\n`;
+    if (shortLiability > 0) text += `- 공매도 상환 의무: ${formatUSD(shortLiability)}\n`;
     text += `- 현금 잔고: ${formatUSD(cash)} (비중 ${cashWeight}%)\n`;
     text += `- 총 미실현 손익: ${unrealized >= 0 ? '+' : ''}${formatUSD(unrealized)} (${unrealized >= 0 ? '+' : ''}${unrealizedRate}%)\n`;
     text += `- 누적 실현 손익: ${realized >= 0 ? '+' : ''}${formatUSD(realized)}\n`;
