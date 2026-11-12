@@ -43,24 +43,52 @@ jobs:
             node --check "$file"
           done
 
-      - name: Verify the existing production project
+      - name: Resolve the existing production project
+        id: target
         run: |
-          python3 - <<'PY'
-          import json, os, urllib.request
+          python3 - <<'PYCODE'
+          import json, os, re, urllib.request, urllib.error
           account = os.environ['CLOUDFLARE_ACCOUNT_ID'].strip()
-          url = f'https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects/hanriver-dmm'
-          request = urllib.request.Request(url, headers={
-              'Authorization': 'Bearer ' + os.environ['CLOUDFLARE_API_TOKEN'].strip()
-          })
-          with urllib.request.urlopen(request, timeout=30) as response:
-              payload = json.load(response)
-          project = payload.get('result') or {}
-          if not payload.get('success') or project.get('subdomain') != 'hanriver-dmm.pages.dev':
-              raise SystemExit('The token/account must access the existing hanriver-dmm.pages.dev project.')
-          if project.get('production_branch') != 'main':
-              raise SystemExit('The existing production branch is not main. Check project settings before deployment.')
+          if not re.fullmatch(r'[a-fA-F0-9]{32}', account):
+              raise SystemExit('CLOUDFLARE_ACCOUNT_ID must contain the 32-character Cloudflare Account ID.')
+          root = f'https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects'
+          def get(url):
+              request = urllib.request.Request(url, headers={
+                  'Authorization': 'Bearer ' + os.environ['CLOUDFLARE_API_TOKEN'].strip()
+              })
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      data = json.load(response)
+              except urllib.error.HTTPError as error:
+                  try:
+                      errors = json.load(error).get('errors', [])
+                      detail = '; '.join(str(item.get('code')) + ': ' + str(item.get('message')) for item in errors)
+                  except Exception:
+                      detail = 'Could not read Cloudflare error details.'
+                  raise SystemExit(f'Cloudflare project lookup failed (HTTP {error.code}): {detail}')
+              if not data.get('success'):
+                  raise SystemExit('Cloudflare project lookup was unsuccessful.')
+              return data
+          target = None
+          for page in range(1, 21):
+              projects = get(root + f'?page={page}&per_page=100').get('result') or []
+              for project in projects:
+                  if project.get('subdomain') == 'hanriver-dmm.pages.dev' or 'hanriver-dmm.pages.dev' in (project.get('domains') or []):
+                      target = get(root + '/' + project['name']).get('result')
+                      break
+              if target or len(projects) < 100:
+                  break
+          if not target:
+              raise SystemExit('This account/token cannot find the existing hanriver-dmm.pages.dev project. Check the Account ID and token account scope.')
+          name, branch = target.get('name'), target.get('production_branch')
+          if not isinstance(name, str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,62}', name):
+              raise SystemExit('The existing project name is invalid.')
+          if not isinstance(branch, str) or not branch or '\n' in branch or '\r' in branch:
+              raise SystemExit('The existing production branch could not be determined.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'project={name}\nbranch={branch}\n')
           print('Verified production target: https://hanriver-dmm.pages.dev/')
-          PY
+          PYCODE
 
       - name: Prepare public site files
         run: |
@@ -70,7 +98,10 @@ jobs:
             icon.svg icon-192.png icon-512.png .deploy/
 
       - name: Deploy to the existing Pages project
-        run: npx --yes wrangler@4 pages deploy .deploy --project-name=hanriver-dmm --branch=main --commit-hash="$SOURCE_REVISION"
+        env:
+          CF_PROJECT: ${{ steps.target.outputs.project }}
+          CF_PRODUCTION_BRANCH: ${{ steps.target.outputs.branch }}
+        run: npx --yes wrangler@4 pages deploy .deploy --project-name="$CF_PROJECT" --branch="$CF_PRODUCTION_BRANCH" --commit-hash="$SOURCE_REVISION"
 
       - name: Verify production serves this revision
         run: |
