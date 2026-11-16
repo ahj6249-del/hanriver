@@ -1,6 +1,10 @@
-name: Deploy verified Hanriver fixes to Cloudflare Pages
+name: Deploy Hanriver to Cloudflare Pages
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SOURCE_REVISION: 6bc0ec1b2861eef88c1dc45aa8913a0597864ede
+      SOURCE_REVISION: ${{ github.sha }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
@@ -29,8 +33,6 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
-        with:
-          ref: 6bc0ec1b2861eef88c1dc45aa8913a0597864ede
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
