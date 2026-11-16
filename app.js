@@ -250,23 +250,34 @@ async function renderMarketCap(refresh = false) {
       }
     }
     const previous = marketCapSnapshot;
+    // 1) 사이트 서버(/api/market-cap)가 Nasdaq에서 바로 조회한 순위
+    // 2) 실패하면 매일 자동 갱신되는 GitHub의 순위 파일
+    let live = false;
+    let fresh;
     try {
-      const fresh = await request('https://raw.githubusercontent.com/ahj6249-del/hanriver/main/market-cap-top100.json');
+      fresh = await request('./api/market-cap');
+      live = true;
+    } catch {
+      try {
+        fresh = await request('https://raw.githubusercontent.com/ahj6249-del/hanriver/main/market-cap-top100.json');
+      } catch {}
+    }
+    if (fresh) {
       if (!marketCapSnapshot || fresh.asOf > marketCapSnapshot.asOf ||
-          (fresh.asOf === marketCapSnapshot.asOf && fresh.rows.some(stock => stock.price > 0))) {
+          (fresh.asOf === marketCapSnapshot.asOf && (live || fresh.rows.some(stock => stock.price > 0)))) {
         marketCapSnapshot = fresh;
       }
       draw(marketCapSnapshot);
       if (refresh && previous) {
         const changed = previous.asOf !== marketCapSnapshot.asOf ||
           JSON.stringify(previous.rows) !== JSON.stringify(marketCapSnapshot.rows);
-        status.textContent += changed ? ' · 최신 공개 자료 반영' : ' · 새로 공개된 자료 없음';
+        status.textContent += changed
+          ? (live ? ' · Nasdaq 최신 순위 반영' : ' · 최신 공개 자료 반영')
+          : ' · 새로 공개된 자료 없음';
       }
-    } catch {
-      if (marketCapSnapshot) {
-        draw(marketCapSnapshot);
-        status.textContent += refresh ? ' · 최신 자료 확인 실패, 저장된 순위 표시 중' : ' · 저장된 순위';
-      }
+    } else if (marketCapSnapshot) {
+      draw(marketCapSnapshot);
+      status.textContent += refresh ? ' · 최신 자료 확인 실패, 저장된 순위 표시 중' : ' · 저장된 순위';
     }
   })();
   try {

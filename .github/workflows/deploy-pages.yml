@@ -41,9 +41,11 @@ jobs:
         run: |
           node tests/holding-period.test.mjs
           node tests/export-risk.test.mjs
-          for file in app.js domain.js storage.js api.js benchmark.js benchmark-view.js sw.js; do
+          for file in app.js domain.js storage.js api.js benchmark.js benchmark-view.js sw.js \
+            functions/api/market-cap.js scripts/market-cap-source.mjs scripts/update-market-cap.mjs; do
             node --check "$file"
           done
+          node tests/market-cap.test.mjs
 
       - name: Resolve the existing production project
         id: target
@@ -125,3 +127,10 @@ jobs:
                       raise SystemExit(f'Production verification failed: {error}')
                   time.sleep(5)
           PY
+
+      - name: Check the live ranking endpoint
+        continue-on-error: true
+        run: |
+          body=$(curl --silent --show-error --max-time 40 'https://hanriver-dmm.pages.dev/api/market-cap') || { echo '::warning::/api/market-cap did not respond.'; exit 1; }
+          node -e "const s=JSON.parse(process.argv[1]); if(s.rows?.length!==100) throw new Error(s.error||'incomplete'); console.log('Live ranking OK, market date', s.asOf)" "$body" \
+            || { echo '::warning::/api/market-cap could not reach Nasdaq; the site falls back to the daily ranking file.'; exit 1; }
