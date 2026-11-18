@@ -1,460 +1,453 @@
 {
-  "asOf": "2026-11-16",
+  "asOf": "2026-11-17",
   "rows": [
     {
       "ticker": "AAPL",
       "name": "Apple Inc.",
-      "marketCap": 5126663165960,
-      "price": 352.78,
-      "changePercent": -0.98
+      "marketCap": 5114020167620,
+      "price": 351.91,
+      "changePercent": -0.247
     },
     {
       "ticker": "MSFT",
       "name": "Microsoft Corporation",
-      "marketCap": 3846694515990,
-      "price": 517.99,
-      "changePercent": -1.124
+      "marketCap": 3759436730004,
+      "price": 506.24,
+      "changePercent": -2.268
     },
     {
       "ticker": "NVDA",
       "name": "NVIDIA Corporation",
-      "marketCap": 3762974000000,
-      "price": 156.14,
-      "changePercent": -4.12
+      "marketCap": 3746586000000,
+      "price": 155.46,
+      "changePercent": -0.436
     },
     {
       "ticker": "GOOGL",
       "name": "Alphabet Inc. Class A",
-      "marketCap": 3488053680000,
-      "price": 283.72,
-      "changePercent": -4.074
+      "marketCap": 3444778800000,
+      "price": 280.2,
+      "changePercent": -1.241
     },
     {
       "ticker": "GOOG",
       "name": "Alphabet Inc. Class C Capital Stock",
-      "marketCap": 3457810440000,
-      "price": 281.26,
-      "changePercent": -3.849
+      "marketCap": 3412814400000,
+      "price": 277.6,
+      "changePercent": -1.301
     },
     {
       "ticker": "AMZN",
       "name": "Amazon.com, Inc.",
-      "marketCap": 2787086398372,
-      "price": 257.75,
-      "changePercent": -3.341
-    },
-    {
-      "ticker": "TSM",
-      "name": "Taiwan Semiconductor Manufacturing Company Ltd.",
-      "marketCap": 1936926188923,
-      "price": 373.455,
-      "changePercent": -6.339
+      "marketCap": 2788600237734,
+      "price": 257.89,
+      "changePercent": 0.054
     },
     {
       "ticker": "SPCX",
       "name": "Space Exploration Technologies Corp. Class A",
-      "marketCap": 1865494911068,
-      "price": 137.36,
-      "changePercent": -1.258
+      "marketCap": 1924436727565,
+      "price": 141.7,
+      "changePercent": 3.16
     },
     {
-      "ticker": "META",
-      "name": "Meta Platforms, Inc. Class A",
-      "marketCap": 1601255083292,
-      "price": 626.41,
-      "changePercent": -2.381
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Company Ltd.",
+      "marketCap": 1865259064160,
+      "price": 359.637,
+      "changePercent": -3.699
     },
     {
       "ticker": "AVGO",
       "name": "Broadcom Inc.",
-      "marketCap": 1591528196991,
-      "price": 333.4,
-      "changePercent": -3.922
+      "marketCap": 1630671961884,
+      "price": 341.6,
+      "changePercent": 2.46
+    },
+    {
+      "ticker": "META",
+      "name": "Meta Platforms, Inc. Class A",
+      "marketCap": 1581981024244,
+      "price": 618.87,
+      "changePercent": -1.204
     },
     {
       "ticker": "TSLA",
       "name": "Tesla, Inc.",
-      "marketCap": 1501020302414,
-      "price": 379.74,
-      "changePercent": -2.686
+      "marketCap": 1502482822854,
+      "price": 380.11,
+      "changePercent": 0.097
     },
     {
       "ticker": "LLY",
       "name": "Eli Lilly and Company",
-      "marketCap": 1348605039190,
-      "price": 1433.55,
-      "changePercent": -0.689
-    },
-    {
-      "ticker": "BRK/B",
-      "name": "Berkshire Hathaway Inc.",
-      "marketCap": 1308717715936,
-      "price": 593.17,
-      "changePercent": 0.039
+      "marketCap": 1331558739228,
+      "price": 1415.43,
+      "changePercent": -1.134
     },
     {
       "ticker": "BRK/A",
       "name": "Berkshire Hathaway Inc.",
-      "marketCap": 1307025196498,
-      "price": 888604.46,
-      "changePercent": -0.134
+      "marketCap": 1302418580926,
+      "price": 885472.57,
+      "changePercent": -0.233
+    },
+    {
+      "ticker": "BRK/B",
+      "name": "Berkshire Hathaway Inc.",
+      "marketCap": 1295523973937,
+      "price": 587.19,
+      "changePercent": -0.955
     },
     {
       "ticker": "WMT",
       "name": "Walmart Inc.",
-      "marketCap": 1018772354807,
-      "price": 128.41,
-      "changePercent": 0.25
-    },
-    {
-      "ticker": "JPM",
-      "name": "JP Morgan Chase & Co.",
-      "marketCap": 898578589560,
-      "price": 338.37,
-      "changePercent": -2.259
+      "marketCap": 1011711320652,
+      "price": 127.52,
+      "changePercent": -0.693
     },
     {
       "ticker": "SKHY",
       "name": "SK hynix Inc. American Depositary Shares",
-      "marketCap": 890527867900,
-      "price": 122.18,
-      "changePercent": -7.292
+      "marketCap": 893661989550,
+      "price": 122.61,
+      "changePercent": 0.352
+    },
+    {
+      "ticker": "JPM",
+      "name": "JP Morgan Chase & Co.",
+      "marketCap": 876324581875,
+      "price": 329.99,
+      "changePercent": -2.43
     },
     {
       "ticker": "AMD",
       "name": "Advanced Micro Devices, Inc.",
-      "marketCap": 827063198934,
-      "price": 504.28,
-      "changePercent": -5.576
+      "marketCap": 833176560104,
+      "price": 503.41,
+      "changePercent": -0.173
     },
     {
       "ticker": "MU",
       "name": "Micron Technology, Inc.",
-      "marketCap": 813515917892,
-      "price": 719.02,
-      "changePercent": -7.618
+      "marketCap": 806048524693,
+      "price": 712.42,
+      "changePercent": -0.918
     },
     {
       "ticker": "V",
       "name": "Visa Inc.",
-      "marketCap": 769029687622,
-      "price": 426.52,
-      "changePercent": 0.179
+      "marketCap": 751810721297,
+      "price": 416.97,
+      "changePercent": -2.225
     },
     {
       "ticker": "XOM",
       "name": "ExxonMobil Holdings Corporation",
-      "marketCap": 681148563699,
-      "price": 166.98,
-      "changePercent": -1.498
+      "marketCap": 682209161535,
+      "price": 167.24,
+      "changePercent": 0.222
     },
     {
       "ticker": "JNJ",
       "name": "Johnson & Johnson",
-      "marketCap": 680883635635,
-      "price": 282.84,
-      "changePercent": -1.018
+      "marketCap": 671206248366,
+      "price": 278.82,
+      "changePercent": -1.32
     },
     {
       "ticker": "MA",
       "name": "Mastercard Incorporated",
-      "marketCap": 576718587468,
-      "price": 662,
-      "changePercent": 0.123
+      "marketCap": 562405163915,
+      "price": 645.57,
+      "changePercent": -2.439
     },
     {
       "ticker": "ASML",
       "name": "ASML Holding N.V. New York Registry Shares",
-      "marketCap": 542199789857,
-      "price": 1406.785,
-      "changePercent": -5.911
+      "marketCap": 533075026638,
+      "price": 1383.11,
+      "changePercent": -1.683
     },
     {
       "ticker": "ABBV",
       "name": "AbbVie Inc.",
-      "marketCap": 520810468400,
-      "price": 294.64,
-      "changePercent": -0.132
+      "marketCap": 517752492190,
+      "price": 292.91,
+      "changePercent": -0.557
     },
     {
       "ticker": "GOOGM",
       "name": "Alphabet Inc. Depositary Shares representing a 1/20th Interest in a Share of Series A Mandatory Convertible Preferred Stock",
-      "marketCap": 511676280000,
-      "price": 41.62,
-      "changePercent": -3.119
+      "marketCap": 506266920000,
+      "price": 41.18,
+      "changePercent": -1.057
     },
     {
       "ticker": "GOOGN",
       "name": "Alphabet Inc. Depositary Shares representing a 1/20th Interest in a Share of Series B Mandatory Convertible Preferred Stock",
-      "marketCap": 511184520000,
-      "price": 41.58,
-      "changePercent": -3.009
+      "marketCap": 506266920000,
+      "price": 41.18,
+      "changePercent": -0.962
     },
     {
       "ticker": "COST",
       "name": "Costco Wholesale Corporation",
-      "marketCap": 493530881155,
-      "price": 1113.74,
-      "changePercent": 0.681
-    },
-    {
-      "ticker": "KO",
-      "name": "Coca-Cola Company (The)",
-      "marketCap": 428469472566,
-      "price": 99.6,
-      "changePercent": 0.353
+      "marketCap": 491909027738,
+      "price": 1110.08,
+      "changePercent": -0.329
     },
     {
       "ticker": "CVX",
       "name": "Chevron Corporation",
-      "marketCap": 426850281765,
-      "price": 217.18,
-      "changePercent": -1.232
+      "marketCap": 425101056465,
+      "price": 216.29,
+      "changePercent": -0.391
+    },
+    {
+      "ticker": "KO",
+      "name": "Coca-Cola Company (The)",
+      "marketCap": 425027950698,
+      "price": 98.8,
+      "changePercent": -0.684
     },
     {
       "ticker": "PG",
       "name": "Procter & Gamble Company (The)",
-      "marketCap": 401300973379,
-      "price": 173.14,
-      "changePercent": 1.967
+      "marketCap": 398171966136,
+      "price": 171.79,
+      "changePercent": -0.711
     },
     {
       "ticker": "PLTR",
       "name": "Palantir Technologies Inc. Class A",
-      "marketCap": 386459299855,
-      "price": 160.39,
-      "changePercent": -4.524
+      "marketCap": 377230924529,
+      "price": 156.56,
+      "changePercent": -2.388
     },
     {
       "ticker": "CSCO",
       "name": "Cisco Systems, Inc. Common Stock (DE)",
-      "marketCap": 372653311236,
-      "price": 94.52,
-      "changePercent": -1.171
-    },
-    {
-      "ticker": "UNH",
-      "name": "UnitedHealth Group Incorporated Common Stock (DE)",
-      "marketCap": 369215077089,
-      "price": 412.06,
-      "changePercent": 1.129
-    },
-    {
-      "ticker": "ORCL",
-      "name": "Oracle Corporation",
-      "marketCap": 359975770800,
-      "price": 119.05,
-      "changePercent": -5.026
+      "marketCap": 374966246780,
+      "price": 95.11,
+      "changePercent": 0.624
     },
     {
       "ticker": "MRK",
       "name": "Merck & Company, Inc. Common Stock (new)",
-      "marketCap": 356277306830,
-      "price": 144.52,
-      "changePercent": -2.193
+      "marketCap": 353491579202,
+      "price": 143.39,
+      "changePercent": -0.741
     },
     {
-      "ticker": "HD",
-      "name": "Home Depot, Inc. (The)",
-      "marketCap": 346926613649,
-      "price": 347.73,
-      "changePercent": -0.275
+      "ticker": "UNH",
+      "name": "UnitedHealth Group Incorporated Common Stock (DE)",
+      "marketCap": 349278573994,
+      "price": 389.81,
+      "changePercent": -5.391
+    },
+    {
+      "ticker": "ORCL",
+      "name": "Oracle Corporation",
+      "marketCap": 347911064160,
+      "price": 115.06,
+      "changePercent": -3.384
     },
     {
       "ticker": "BAC",
       "name": "Bank of America Corporation",
-      "marketCap": 345769473291,
-      "price": 50.11,
-      "changePercent": -1.784
+      "marketCap": 341215335347,
+      "price": 49.45,
+      "changePercent": -1.258
+    },
+    {
+      "ticker": "HD",
+      "name": "Home Depot, Inc. (The)",
+      "marketCap": 338386390450,
+      "price": 339.17,
+      "changePercent": -2.4
     },
     {
       "ticker": "GE",
       "name": "GE Aerospace",
-      "marketCap": 336201047497,
-      "price": 325.35,
-      "changePercent": -1.947
+      "marketCap": 337203398861,
+      "price": 326.32,
+      "changePercent": 0.351
     },
     {
       "ticker": "NVS",
       "name": "Novartis AG",
-      "marketCap": 305704980493,
-      "price": 160.21,
-      "changePercent": -0.181
+      "marketCap": 303701421230,
+      "price": 159.16,
+      "changePercent": -0.649
     },
     {
       "ticker": "PM",
       "name": "Philip Morris International Inc",
-      "marketCap": 305613402456,
-      "price": 196.075,
-      "changePercent": -1.45
+      "marketCap": 302955894609,
+      "price": 194.37,
+      "changePercent": -0.852
     },
     {
       "ticker": "HSBC",
       "name": "HSBC Holdings, plc.",
-      "marketCap": 302717442937,
-      "price": 88.17,
-      "changePercent": -1.618
+      "marketCap": 299696105183,
+      "price": 87.29,
+      "changePercent": -0.976
     },
     {
       "ticker": "INTC",
       "name": "Intel Corporation",
-      "marketCap": 294674230000,
-      "price": 55.442,
-      "changePercent": -7.07
+      "marketCap": 293228550000,
+      "price": 55.17,
+      "changePercent": -0.541
     },
     {
       "ticker": "MS",
       "name": "Morgan Stanley",
-      "marketCap": 290448350000,
-      "price": 185.59,
-      "changePercent": -2.654
-    },
-    {
-      "ticker": "SAP",
-      "name": "SAP  SE ADS",
-      "marketCap": 287310284738,
-      "price": 233.87,
-      "changePercent": -0.438
+      "marketCap": 287169675000,
+      "price": 183.495,
+      "changePercent": -1.118
     },
     {
       "ticker": "AZN",
       "name": "AstraZeneca PLC Ordinary Shares",
-      "marketCap": 285659212328,
-      "price": 184.21,
-      "changePercent": -0.13
+      "marketCap": 282790369471,
+      "price": 182.36,
+      "changePercent": -0.902
     },
     {
       "ticker": "TM",
       "name": "Toyota Motor Corporation",
-      "marketCap": 278789287872,
-      "price": 213.895,
-      "changePercent": 0.69
+      "marketCap": 277844327804,
+      "price": 213.17,
+      "changePercent": -0.318
     },
     {
       "ticker": "AMAT",
       "name": "Applied Materials, Inc.",
-      "marketCap": 277957504411,
-      "price": 350.25,
-      "changePercent": -5.466
+      "marketCap": 277148035019,
+      "price": 349.23,
+      "changePercent": -0.291
+    },
+    {
+      "ticker": "SAP",
+      "name": "SAP  SE ADS",
+      "marketCap": 273391331789,
+      "price": 222.54,
+      "changePercent": -4.828
     },
     {
       "ticker": "RY",
       "name": "Royal Bank Of Canada",
-      "marketCap": 276415253668,
-      "price": 199.66,
-      "changePercent": -1.31
-    },
-    {
-      "ticker": "SHEL",
-      "name": "Shell PLC American Depositary Shares (each representing two (2) Ordinary Shares)",
-      "marketCap": 270286807463,
-      "price": 97.715,
-      "changePercent": -1.378
+      "marketCap": 272054299801,
+      "price": 196.51,
+      "changePercent": -1.553
     },
     {
       "ticker": "TXN",
       "name": "Texas Instruments Incorporated",
-      "marketCap": 268840364670,
-      "price": 294.21,
-      "changePercent": -3.093
+      "marketCap": 270348085692,
+      "price": 295.86,
+      "changePercent": 0.561
     },
     {
-      "ticker": "LRCX",
-      "name": "Lam Research Corporation",
-      "marketCap": 263362721930,
-      "price": 210.83,
-      "changePercent": -6.679
+      "ticker": "SHEL",
+      "name": "Shell PLC American Depositary Shares (each representing two (2) Ordinary Shares)",
+      "marketCap": 269000583593,
+      "price": 97.25,
+      "changePercent": -0.471
     },
     {
       "ticker": "RTX",
       "name": "RTX Corporation",
-      "marketCap": 263019457211,
-      "price": 194.91,
-      "changePercent": -1.848
+      "marketCap": 267189228504,
+      "price": 198,
+      "changePercent": 1.596
+    },
+    {
+      "ticker": "LRCX",
+      "name": "Lam Research Corporation",
+      "marketCap": 263187837990,
+      "price": 210.69,
+      "changePercent": -0.066
     },
     {
       "ticker": "CAT",
       "name": "Caterpillar, Inc.",
-      "marketCap": 261009428879,
-      "price": 570.395,
-      "changePercent": -4.966
-    },
-    {
-      "ticker": "PANW",
-      "name": "Palo Alto Networks, Inc.",
-      "marketCap": 258701683272,
-      "price": 316.09,
-      "changePercent": -1.909
-    },
-    {
-      "ticker": "GS",
-      "name": "Goldman Sachs Group, Inc. (The)",
-      "marketCap": 257153852474,
-      "price": 891.55,
-      "changePercent": -2.729
+      "marketCap": 261254241762,
+      "price": 570.93,
+      "changePercent": 0.077
     },
     {
       "ticker": "TMO",
       "name": "Thermo Fisher Scientific Inc",
-      "marketCap": 256311762006,
-      "price": 691.77,
-      "changePercent": -1.207
+      "marketCap": 254651850918,
+      "price": 687.29,
+      "changePercent": -0.584
+    },
+    {
+      "ticker": "PANW",
+      "name": "Palo Alto Networks, Inc.",
+      "marketCap": 253136270110,
+      "price": 309.29,
+      "changePercent": -2.151
+    },
+    {
+      "ticker": "GS",
+      "name": "Goldman Sachs Group, Inc. (The)",
+      "marketCap": 253035006628,
+      "price": 877.27,
+      "changePercent": -1.601
     },
     {
       "ticker": "WFC",
       "name": "Wells Fargo & Company",
-      "marketCap": 254676980894,
-      "price": 84.84,
-      "changePercent": -1.406
+      "marketCap": 248253021216,
+      "price": 82.7,
+      "changePercent": -2.522
     },
     {
       "ticker": "AMGN",
       "name": "Amgen Inc.",
-      "marketCap": 250074200057,
-      "price": 462.32,
-      "changePercent": -0.719
+      "marketCap": 247699598616,
+      "price": 457.93,
+      "changePercent": -0.95
     },
     {
       "ticker": "NFLX",
       "name": "Netflix, Inc.",
-      "marketCap": 249459298607,
-      "price": 60.75,
-      "changePercent": -2.253
+      "marketCap": 245065529891,
+      "price": 59.68,
+      "changePercent": -1.761
     },
     {
       "ticker": "LIN",
       "name": "Linde plc Ordinary Shares",
-      "marketCap": 240311994955,
-      "price": 523.46,
-      "changePercent": -0.494
-    },
-    {
-      "ticker": "MUFG",
-      "name": "Mitsubishi UFJ Financial Group, Inc.",
-      "marketCap": 238997486083,
-      "price": 21.19,
-      "changePercent": -2.932
+      "marketCap": 236478645401,
+      "price": 515.11,
+      "changePercent": -1.595
     },
     {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
-      "marketCap": 236395210902,
-      "price": 187.11,
-      "changePercent": -5.16
+      "marketCap": 235712973641,
+      "price": 186.57,
+      "changePercent": -0.241
     },
     {
-      "ticker": "IBM",
-      "name": "International Business Machines Corporation",
-      "marketCap": 229182344004,
-      "price": 242.49,
-      "changePercent": -1.878
+      "ticker": "MUFG",
+      "name": "Mitsubishi UFJ Financial Group, Inc.",
+      "marketCap": 230876759798,
+      "price": 20.47,
+      "changePercent": -3.443
     },
     {
       "ticker": "CRWD",
       "name": "CrowdStrike Holdings, Inc. Class A",
-      "marketCap": 228552496083,
-      "price": 223.21,
-      "changePercent": -1.5
+      "marketCap": 224835612606,
+      "price": 219.58,
+      "changePercent": -1.626
     },
     {
       "ticker": "CCZ",
@@ -464,242 +457,249 @@
       "changePercent": -1.987
     },
     {
-      "ticker": "BABA",
-      "name": "Alibaba Group Holding Limited American Depositary Shares each representing eight Ordinary share",
-      "marketCap": 219549907811,
-      "price": 90.63,
-      "changePercent": -3.973
+      "ticker": "IBM",
+      "name": "International Business Machines Corporation",
+      "marketCap": 218455222868,
+      "price": 231.14,
+      "changePercent": -4.688
     },
     {
       "ticker": "AXP",
       "name": "American Express Company",
-      "marketCap": 213936268583,
-      "price": 319.045,
-      "changePercent": -0.485
+      "marketCap": 211740210724,
+      "price": 315.77,
+      "changePercent": -1.028
     },
     {
       "ticker": "GILD",
       "name": "Gilead Sciences, Inc.",
-      "marketCap": 207855944934,
-      "price": 167.58,
-      "changePercent": -0.297
+      "marketCap": 211180052420,
+      "price": 170.26,
+      "changePercent": 1.599
     },
     {
-      "ticker": "DIS",
-      "name": "Walt Disney Company (The)",
-      "marketCap": 204983635571,
-      "price": 118.715,
-      "changePercent": -0.214
-    },
-    {
-      "ticker": "DELL",
-      "name": "Dell Technologies Inc. Class C Common Stock",
-      "marketCap": 203835209523,
-      "price": 320.59,
-      "changePercent": -6.949
-    },
-    {
-      "ticker": "KOF",
-      "name": "Coca Cola Femsa S.A.B. de C.V.  American Depositary Shares, each representing 10 Units (each Unit consists of 3 Series B Shares and 5 Series L Shares)",
-      "marketCap": 202352163524,
-      "price": 120.4,
-      "changePercent": -0.191
+      "ticker": "BABA",
+      "name": "Alibaba Group Holding Limited American Depositary Shares each representing eight Ordinary share",
+      "marketCap": 209908413460,
+      "price": 86.65,
+      "changePercent": -4.381
     },
     {
       "ticker": "GEV",
       "name": "GE Vernova Inc.",
-      "marketCap": 202035944790,
-      "price": 763.33,
-      "changePercent": -4.956
+      "marketCap": 206379295443,
+      "price": 779.74,
+      "changePercent": 2.118
+    },
+    {
+      "ticker": "DELL",
+      "name": "Dell Technologies Inc. Class C Common Stock",
+      "marketCap": 205310295103,
+      "price": 322.91,
+      "changePercent": 0.736
+    },
+    {
+      "ticker": "KOF",
+      "name": "Coca Cola Femsa S.A.B. de C.V.  American Depositary Shares, each representing 10 Units (each Unit consists of 3 Series B Shares and 5 Series L Shares)",
+      "marketCap": 203175689771,
+      "price": 120.89,
+      "changePercent": 0.365
+    },
+    {
+      "ticker": "DIS",
+      "name": "Walt Disney Company (The)",
+      "marketCap": 201953300058,
+      "price": 116.96,
+      "changePercent": -1.466
     },
     {
       "ticker": "C",
       "name": "Citigroup, Inc.",
-      "marketCap": 200825416000,
-      "price": 121.33,
-      "changePercent": -2.161
-    },
-    {
-      "ticker": "PEP",
-      "name": "PepsiCo, Inc.",
-      "marketCap": 199546178102,
-      "price": 146.43,
-      "changePercent": 0.681
-    },
-    {
-      "ticker": "TD",
-      "name": "Toronto Dominion Bank (The)",
-      "marketCap": 198866328505,
-      "price": 121.77,
-      "changePercent": -1.608
+      "marketCap": 198524688000,
+      "price": 119.94,
+      "changePercent": -1.137
     },
     {
       "ticker": "TTE",
       "name": "TotalEnergies SE Ordinary Shares",
-      "marketCap": 196378471669,
-      "price": 90.005,
-      "changePercent": -0.81
+      "marketCap": 197153032609,
+      "price": 90.36,
+      "changePercent": 0.467
     },
     {
-      "ticker": "MCD",
-      "name": "McDonald's Corporation",
-      "marketCap": 193900242719,
-      "price": 274.73,
-      "changePercent": 1.015
-    },
-    {
-      "ticker": "VZ",
-      "name": "Verizon Communications Inc.",
-      "marketCap": 192143578857,
-      "price": 46.36,
-      "changePercent": null
-    },
-    {
-      "ticker": "BHP",
-      "name": "BHP Group Limited American Depositary Shares (Each representing two Ordinary Shares)",
-      "marketCap": 191978727802,
-      "price": 75.52,
-      "changePercent": -4.994
-    },
-    {
-      "ticker": "SHOP",
-      "name": "Shopify Inc. Class A Subordinate Voting Shares",
-      "marketCap": 190160818742,
-      "price": 147.81,
-      "changePercent": 0.489
-    },
-    {
-      "ticker": "KLAC",
-      "name": "KLA Corporation",
-      "marketCap": 187574472143,
-      "price": 143.96,
-      "changePercent": -5.346
-    },
-    {
-      "ticker": "APH",
-      "name": "Amphenol Corporation",
-      "marketCap": 186330449246,
-      "price": 75.46,
-      "changePercent": -3.541
+      "ticker": "TD",
+      "name": "Toronto Dominion Bank (The)",
+      "marketCap": 195436753980,
+      "price": 119.67,
+      "changePercent": -1.716
     },
     {
       "ticker": "ARM",
       "name": "Arm Holdings plc American Depositary Shares",
-      "marketCap": 186262871863,
-      "price": 175.05,
-      "changePercent": -8.125
+      "marketCap": 195137092664,
+      "price": 183.39,
+      "changePercent": 4.764
     },
     {
-      "ticker": "ABT",
-      "name": "Abbott Laboratories",
-      "marketCap": 186218360940,
-      "price": 107.52,
-      "changePercent": -0.921
+      "ticker": "MCD",
+      "name": "McDonald's Corporation",
+      "marketCap": 194606027463,
+      "price": 275.73,
+      "changePercent": 0.386
+    },
+    {
+      "ticker": "PEP",
+      "name": "PepsiCo, Inc.",
+      "marketCap": 193536489886,
+      "price": 142.02,
+      "changePercent": -3.012
+    },
+    {
+      "ticker": "VZ",
+      "name": "Verizon Communications Inc.",
+      "marketCap": 190402847556,
+      "price": 45.94,
+      "changePercent": -0.863
+    },
+    {
+      "ticker": "APH",
+      "name": "Amphenol Corporation",
+      "marketCap": 188552784316,
+      "price": 76.36,
+      "changePercent": 1.233
+    },
+    {
+      "ticker": "KLAC",
+      "name": "KLA Corporation",
+      "marketCap": 188356249604,
+      "price": 144.56,
+      "changePercent": 0.417
+    },
+    {
+      "ticker": "BHP",
+      "name": "BHP Group Limited American Depositary Shares (Each representing two Ordinary Shares)",
+      "marketCap": 187860540050,
+      "price": 73.9,
+      "changePercent": -2.184
     },
     {
       "ticker": "ADI",
       "name": "Analog Devices, Inc.",
-      "marketCap": 185670949224,
-      "price": 383.17,
-      "changePercent": -3.719
+      "marketCap": 185913231957,
+      "price": 383.67,
+      "changePercent": 0.13
+    },
+    {
+      "ticker": "SHOP",
+      "name": "Shopify Inc. Class A Subordinate Voting Shares",
+      "marketCap": 182557473645,
+      "price": 141.9,
+      "changePercent": -3.998
     },
     {
       "ticker": "BLK",
       "name": "BlackRock, Inc.",
-      "marketCap": 185179933761,
-      "price": 1199.17,
-      "changePercent": -1.941
+      "marketCap": 182410349705,
+      "price": 1181.235,
+      "changePercent": -1.397
+    },
+    {
+      "ticker": "ABT",
+      "name": "Abbott Laboratories",
+      "marketCap": 181438202121,
+      "price": 104.76,
+      "changePercent": -2.503
     },
     {
       "ticker": "NVO",
       "name": "Novo Nordisk A/S",
-      "marketCap": 184201909632,
-      "price": 41.6,
-      "changePercent": -0.072
-    },
-    {
-      "ticker": "UNP",
-      "name": "Union Pacific Corporation",
-      "marketCap": 180521391372,
-      "price": 303.78,
-      "changePercent": 0.443
-    },
-    {
-      "ticker": "QCOM",
-      "name": "QUALCOMM Incorporated",
-      "marketCap": 180316400000,
-      "price": 168.52,
-      "changePercent": -2.29
-    },
-    {
-      "ticker": "TMUS",
-      "name": "T-Mobile US, Inc.",
-      "marketCap": 180086929796,
-      "price": 170.01,
-      "changePercent": 0.035
+      "marketCap": 180238911817,
+      "price": 40.705,
+      "changePercent": -2.151
     },
     {
       "ticker": "WELL",
       "name": "Welltower Inc.",
-      "marketCap": 179492325180,
-      "price": 244.67,
-      "changePercent": 0.086
+      "marketCap": 180229603093,
+      "price": 245.675,
+      "changePercent": 0.419
+    },
+    {
+      "ticker": "QCOM",
+      "name": "QUALCOMM Incorporated",
+      "marketCap": 178336900000,
+      "price": 166.67,
+      "changePercent": -1.098
+    },
+    {
+      "ticker": "TMUS",
+      "name": "T-Mobile US, Inc.",
+      "marketCap": 177851864671,
+      "price": 167.9,
+      "changePercent": -1.241
     },
     {
       "ticker": "NEE",
       "name": "NextEra Energy, Inc.",
-      "marketCap": 178921179040,
-      "price": 85.31,
-      "changePercent": 0.223
+      "marketCap": 177264307261,
+      "price": 84.52,
+      "changePercent": -0.961
     },
     {
-      "ticker": "CRM",
-      "name": "Salesforce, Inc.",
-      "marketCap": 176838010000,
-      "price": 214.87,
-      "changePercent": -1.363
+      "ticker": "UNP",
+      "name": "Union Pacific Corporation",
+      "marketCap": 176557741098,
+      "price": 297.11,
+      "changePercent": -2.173
     },
     {
       "ticker": "DE",
       "name": "Deere & Company",
-      "marketCap": 176335019448,
-      "price": 654,
-      "changePercent": -2.901
+      "marketCap": 174884434731,
+      "price": 648.62,
+      "changePercent": -0.821
     },
     {
       "ticker": "SAN",
       "name": "Banco Santander, S.A. Sponsored ADR (Spain)",
-      "marketCap": 173189886425,
-      "price": 11.965,
-      "changePercent": -2.007
+      "marketCap": 171525294955,
+      "price": 11.85,
+      "changePercent": -1.085
     },
     {
       "ticker": "WMB",
       "name": "Williams Companies, Inc. (The)",
-      "marketCap": 171763497216,
-      "price": 67.63,
-      "changePercent": -2.113
-    },
-    {
-      "ticker": "BUD",
-      "name": "Anheuser-Busch Inbev SA Sponsored ADR (Belgium)",
-      "marketCap": 166428308427,
-      "price": 84.39,
-      "changePercent": -0.495
+      "marketCap": 171306341671,
+      "price": 67.45,
+      "changePercent": -0.237
     },
     {
       "ticker": "COP",
       "name": "ConocoPhillips",
-      "marketCap": 166153545560,
-      "price": 140.53,
-      "changePercent": -0.58
+      "marketCap": 164994857204,
+      "price": 139.55,
+      "changePercent": -0.69
     },
     {
-      "ticker": "ACN",
-      "name": "Accenture plc Class A Ordinary Shares (Ireland)",
-      "marketCap": 165699482467,
-      "price": 247.785,
-      "changePercent": -1.08
+      "ticker": "BUD",
+      "name": "Anheuser-Busch Inbev SA Sponsored ADR (Belgium)",
+      "marketCap": 164594224687,
+      "price": 83.46,
+      "changePercent": -1.067
+    },
+    {
+      "ticker": "PFE",
+      "name": "Pfizer, Inc.",
+      "marketCap": 162217837241,
+      "price": 28.46,
+      "changePercent": -1.386
+    },
+    {
+      "ticker": "CRM",
+      "name": "Salesforce, Inc.",
+      "marketCap": 160172260000,
+      "price": 194.62,
+      "changePercent": -9.407
     }
   ]
 }
