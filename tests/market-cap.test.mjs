@@ -23,10 +23,34 @@ const nasdaqPayload = {
 const parsed = parseNasdaqScreener(nasdaqPayload);
 assert.equal(parsed.asOf, '2026-11-14');
 assert.equal(parsed.rows.length, 100);
-assert.deepEqual(parsed.rows.map(row => row.ticker), saved.rows.map(row => row.ticker));
-assert.equal(parsed.rows[0].name, saved.rows[0].name);
-assert.equal(parsed.rows[0].marketCap, saved.rows[0].marketCap);
-assert.equal(parsed.rows[0].price, saved.rows[0].price);
+
+// 순위는 시가총액 내림차순이고, 시가총액이 같은 종목(예: GOOGM/GOOGN 우선주)은
+// 티커 오름차순으로 고정된다. 저장된 순위 파일도 이 규칙으로 기대값을 만들어 비교하므로,
+// 동률 종목의 자리가 바뀌어도 배포가 막히지 않는다.
+const byTicker = (a, b) => (a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0);
+const expectedOrder = [...saved.rows].sort((a, b) => b.marketCap - a.marketCap || byTicker(a, b));
+assert.deepEqual(parsed.rows.map(row => row.ticker), expectedOrder.map(row => row.ticker));
+for (let index = 1; index < parsed.rows.length; index += 1) {
+  assert.ok(parsed.rows[index - 1].marketCap >= parsed.rows[index].marketCap, 'rows must be ranked by market cap');
+}
+
+// 저장된 순위 파일과 같은 종목·이름·숫자여야 한다(티커 기준 비교).
+const savedByTicker = new Map(saved.rows.map(row => [row.ticker, row]));
+assert.equal(savedByTicker.size, 100);
+for (const row of parsed.rows) {
+  const expected = savedByTicker.get(row.ticker);
+  assert.ok(expected, 'unexpected ticker ' + row.ticker);
+  assert.equal(row.name, expected.name);
+  assert.equal(row.marketCap, expected.marketCap);
+  assert.equal(row.price, expected.price);
+  assert.equal(row.changePercent, expected.changePercent);
+}
+
+// Nasdaq 응답 순서를 반대로 받아도(동률 종목 포함) 같은 순위가 나와야 한다.
+const reordered = parseNasdaqScreener({
+  data: { ...nasdaqPayload.data, table: { rows: [...nasdaqPayload.data.table.rows].reverse() } }
+});
+assert.deepEqual(reordered.rows.map(row => row.ticker), parsed.rows.map(row => row.ticker));
 
 // 불완전한 응답은 거부
 assert.throws(() => parseNasdaqScreener({ data: { asof: 'Nov 14, 2026', table: { rows: nasdaqPayload.data.table.rows.slice(1) } } }), /100 distinct/);
