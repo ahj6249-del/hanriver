@@ -102,7 +102,7 @@
     {
       "ticker": "ANT",
       "name": "Anthropic, PBC Class A",
-      "marketCap": 1083445623974,
+      "marketCap": 1094454184030,
       "price": 82.79,
       "changePercent": 1.081
     },
@@ -695,11 +695,11 @@
       "changePercent": null
     },
     {
-      "ticker": "ADI",
-      "name": "Analog Devices, Inc.",
-      "marketCap": 161411179219,
-      "price": 333.105,
-      "changePercent": 6.44
+      "ticker": "SCHW",
+      "name": "Charles Schwab Corporation (The)",
+      "marketCap": 161312680109,
+      "price": 93.46,
+      "changePercent": -0.479
     }
   ]
 }
